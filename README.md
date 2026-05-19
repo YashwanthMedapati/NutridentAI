@@ -1,8 +1,3 @@
-# NutriDent AI README
-
-Paste this into your `README.md` on GitHub:
-
-````md
 # 🦷 NutriDent AI
 
 NutriDent AI is a full-stack AI-powered oral health and nutrition analytics platform that combines machine learning, food-risk analysis, barcode scanning, image-based food recognition, and wellness tracking into a unified healthcare application.
@@ -138,41 +133,32 @@ Tracks:
 
 ## Backend
 
-```bash
+
 cd backend
 venv\Scripts\activate
 uvicorn main:app --reload
-````
+
 
 Backend runs on:
 
-```bash
+
 http://127.0.0.1:8000
-```
+
 
 Swagger API Docs:
 
-```bash
 http://127.0.0.1:8000/docs
-```
-
----
 
 ## Frontend
 
-```bash
 cd frontend
 npm install
 npm start
-```
+
 
 Frontend runs on:
 
-```bash
 http://localhost:3000
-```
-
----
 
 # 📌 Future Improvements
 
@@ -184,7 +170,6 @@ http://localhost:3000
 * Wearable device integration
 * Longitudinal oral-health analytics
 
----
 
 # 👨‍💻 Author
 
@@ -194,5 +179,3 @@ Binghamton University
 
 GitHub: [https://github.com/YashwanthMedapati](https://github.com/YashwanthMedapati)
 
-```
-```
