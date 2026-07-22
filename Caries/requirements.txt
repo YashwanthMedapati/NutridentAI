@@ -8,3 +8,4 @@ joblib
 numpy
 scikit-learn
 slowapi>=0.1.9
+redis>=5.0  # only used when REDIS_URL is set; falls back to in-memory rate-limit storage otherwise

@@ -1,0 +1,96 @@
+{
+  "generated_at": "2026-07-22T18:06:52.560260+00:00",
+  "git_commit": "1b6128c",
+  "environment": {
+    "python": "3.12.8",
+    "scikit_learn": "1.9.0"
+  },
+  "dataset": {
+    "source": "NHANES 2017-2018 (dental exam, dietary recall, smoking, demographics)",
+    "merged_rows": 8366,
+    "train_rows": 6692,
+    "test_rows": 1674,
+    "caries_count_median_threshold": 7.0,
+    "label_distribution": {
+      "low_risk": 4531,
+      "high_risk": 3835
+    }
+  },
+  "models_compared": {
+    "Logistic Regression": {
+      "accuracy": 0.6404,
+      "cohen_kappa": 0.2707,
+      "roc_auc": 0.6735
+    },
+    "Random Forest": {
+      "accuracy": 0.7204,
+      "cohen_kappa": 0.4382,
+      "roc_auc": 0.7982
+    },
+    "XGBoost": {
+      "accuracy": 0.7157,
+      "cohen_kappa": 0.4288,
+      "roc_auc": 0.7819
+    }
+  },
+  "best_model": {
+    "name": "Random Forest",
+    "held_out_accuracy": 0.7204,
+    "held_out_accuracy_95ci": [
+      0.6995,
+      0.7419
+    ],
+    "held_out_roc_auc": 0.7982,
+    "held_out_cohen_kappa": 0.4382,
+    "cv_5fold_roc_auc_mean": 0.7979,
+    "cv_5fold_roc_auc_std": 0.0079,
+    "cv_5fold_f1_weighted_mean": 0.7174,
+    "cv_5fold_f1_weighted_std": 0.0074
+  },
+  "top_features": [
+    {
+      "feature": "RIDAGEYR",
+      "importance": 0.4017
+    },
+    {
+      "feature": "sugar_per_year",
+      "importance": 0.1441
+    },
+    {
+      "feature": "age_group",
+      "importance": 0.094
+    },
+    {
+      "feature": "diet_risk_score",
+      "importance": 0.0419
+    },
+    {
+      "feature": "DR1TSUGR",
+      "importance": 0.0385
+    },
+    {
+      "feature": "DR1TCARB",
+      "importance": 0.0362
+    },
+    {
+      "feature": "DR1TKCAL",
+      "importance": 0.0308
+    },
+    {
+      "feature": "DR1TCALC",
+      "importance": 0.0297
+    },
+    {
+      "feature": "DR1TTFAT",
+      "importance": 0.0293
+    },
+    {
+      "feature": "DR1TPHOS",
+      "importance": 0.0286
+    }
+  ],
+  "notes": [
+    "Educational/research use only \u2014 not a clinical diagnostic tool.",
+    "The caries_risk label is derived from a median split of tooth-surface counts, not a clinician-assigned diagnosis, so metrics reflect agreement with that proxy label rather than ground-truth caries status."
+  ]
+}
