@@ -90,7 +90,7 @@
     }
   ],
   "notes": [
-    "Educational/research use only \u2014 not a clinical diagnostic tool.",
+    "Educational/research use only - not a clinical diagnostic tool.",
     "The caries_risk label is derived from a median split of tooth-surface counts, not a clinician-assigned diagnosis, so metrics reflect agreement with that proxy label rather than ground-truth caries status."
   ]
 }

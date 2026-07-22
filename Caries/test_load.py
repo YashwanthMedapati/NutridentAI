@@ -16,7 +16,7 @@ from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
 
 
-# ── 1. LOAD ────────────────────────────────────────────────────────────────────
+# 1. LOAD
 dental  = pd.read_sas("OHXDEN_J.xpt")
 diet    = pd.read_sas("DR1TOT_J.xpt")
 smoking = pd.read_sas("SMQ_J.xpt")
@@ -31,7 +31,7 @@ print(f"  DBQ:     {dbq.shape}")
 print(f"  Demo:    {demo.shape}")
 
 
-# ── 2. MERGE ───────────────────────────────────────────────────────────────────
+# 2. MERGE
 demo_cols = demo[["SEQN", "RIDAGEYR", "RIAGENDR"]].copy()
 
 df = dental.merge(diet,      on="SEQN", how="inner")
@@ -42,7 +42,7 @@ df = df.merge(demo_cols,     on="SEQN", how="left")
 print(f"\nMerged shape: {df.shape}")
 
 
-# ── 3. CARIES LABEL (binary) ───────────────────────────────────────────────────
+# 3. CARIES LABEL (binary)
 tooth_cols = [c for c in df.columns if "OHX" in c and "CTC" in c and "RTC" not in c]
 print(f"Tooth columns: {len(tooth_cols)}")
 
@@ -58,9 +58,9 @@ def count_caries(row):
 
 df["caries_count"] = df[tooth_cols].apply(count_caries, axis=1)
 
-# Data-driven threshold — median gives natural ~50/50 split
+# Data-driven threshold - median gives natural ~50/50 split
 threshold = df["caries_count"].median()
-print(f"\nCaries count — median threshold: {threshold}")
+print(f"\nCaries count - median threshold: {threshold}")
 print(f"Mean: {df['caries_count'].mean():.2f}, Std: {df['caries_count'].std():.2f}")
 
 df["caries_risk"] = (df["caries_count"] > threshold).astype(int)
@@ -71,9 +71,9 @@ print(f"  Low risk  (0): {vc.get(0, 0)}")
 print(f"  High risk (1): {vc.get(1, 0)}")
 
 
-# ── 4. FEATURE ENGINEERING ────────────────────────────────────────────────────
+# 4. FEATURE ENGINEERING
 
-# Fix smoking nulls — non-smokers get 0
+# Fix smoking nulls - non-smokers get 0
 df["SMD650"] = df["SMD650"].fillna(0)
 df["SMD030"] = df["SMD030"].fillna(df["RIDAGEYR"])  # started "now" = 0 years smoking
 df["SMQ040"] = df["SMQ040"].fillna(3)               # 3 = not at all
@@ -96,13 +96,13 @@ df["diet_risk_score"] = (
 df["smoker_flag"] = (df["SMQ040"] == 1).astype(int)
 
 
-# ── 5. SELECT FEATURES ────────────────────────────────────────────────────────
+# 5. SELECT FEATURES
 features = [
     # Demographics
-    "RIDAGEYR",         # age — most important feature
+    "RIDAGEYR",         # age - most important feature
     "RIAGENDR",         # gender
 
-    # Diet — nutritional
+    # Diet - nutritional
     "DR1TSUGR",         # total sugar
     "DR1TCARB",         # total carbs
     "DR1TTFAT",         # total fat
@@ -137,7 +137,7 @@ print(features)
 df_model = df[features + ["caries_risk"]].copy()
 
 
-# ── 6. PREPROCESSING ──────────────────────────────────────────────────────────
+# 6. PREPROCESSING
 
 # Clip outliers at 1st/99th percentile
 for col in features:
@@ -153,7 +153,7 @@ print(f"\nFinal model data shape: {df_model.shape}")
 print(f"Nulls remaining: {df_model.isnull().sum().sum()}")
 
 
-# ── 7. TRAIN / TEST SPLIT ─────────────────────────────────────────────────────
+# 7. TRAIN / TEST SPLIT
 X = df_model[features].values
 y = df_model["caries_risk"].values
 
@@ -164,7 +164,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 print(f"\nTrain size: {X_train.shape[0]}, Test size: {X_test.shape[0]}")
 
 
-# ── 8. TRAIN & EVALUATE ───────────────────────────────────────────────────────
+# 8. TRAIN AND EVALUATE
 models = {
     "Logistic Regression": LogisticRegression(
         max_iter=1000,
@@ -215,7 +215,7 @@ for name, clf in models.items():
     print(f"  FN={cm[1,0]}  TP={cm[1,1]}")
 
 
-# ── 9. CROSS-VALIDATION ───────────────────────────────────────────────────────
+# 9. CROSS-VALIDATION
 best_name  = max(results, key=lambda k: results[k]["auc"])
 best_model = results[best_name]["model"]
 print(f"\nBest model by ROC-AUC: {best_name}")
@@ -224,11 +224,11 @@ cv       = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 cv_aucs  = cross_val_score(best_model, X, y, cv=cv, scoring="roc_auc")
 cv_kappa = cross_val_score(best_model, X, y, cv=cv, scoring="f1_weighted")
 
-print(f"5-fold ROC-AUC   : {cv_aucs.mean():.4f} ± {cv_aucs.std():.4f}")
-print(f"5-fold F1-weighted: {cv_kappa.mean():.4f} ± {cv_kappa.std():.4f}")
+print(f"5-fold ROC-AUC   : {cv_aucs.mean():.4f} +/- {cv_aucs.std():.4f}")
+print(f"5-fold F1-weighted: {cv_kappa.mean():.4f} +/- {cv_kappa.std():.4f}")
 
 
-# ── 10. FEATURE IMPORTANCE ────────────────────────────────────────────────────
+# 10. FEATURE IMPORTANCE
 feature_importance_rows = []
 if hasattr(best_model, "feature_importances_"):
     imp_df = pd.DataFrame({
@@ -241,7 +241,7 @@ if hasattr(best_model, "feature_importances_"):
     feature_importance_rows = imp_df.round(4).to_dict(orient="records")
 
 
-# ── 11. HELD-OUT ACCURACY — BOOTSTRAP CONFIDENCE INTERVAL ────────────────────
+# 11. HELD-OUT ACCURACY - BOOTSTRAP CONFIDENCE INTERVAL
 # The single train/test accuracy number is a point estimate that depends on
 # which rows happened to land in the test split. Bootstrap-resampling the
 # held-out predictions gives a 95% interval around it, so "~70% accuracy"
@@ -265,7 +265,7 @@ print(f"\nBootstrap 95% CI for held-out accuracy ({best_name}, n=2000 resamples)
       f"{ci_low:.4f} - {ci_high:.4f} (mean {ci_mean:.4f})")
 
 
-# ── 12. PERSIST AN EVALUATION REPORT ──────────────────────────────────────────
+# 12. PERSIST AN EVALUATION REPORT
 # Numbers printed to the console disappear the moment the terminal is closed.
 # Saving them alongside the model means the README's accuracy claim can point
 # at a versioned artifact instead of an unverifiable one-line assertion.
@@ -314,7 +314,7 @@ report = {
     },
     "top_features": feature_importance_rows[:10],
     "notes": [
-        "Educational/research use only — not a clinical diagnostic tool.",
+        "Educational/research use only - not a clinical diagnostic tool.",
         "The caries_risk label is derived from a median split of tooth-surface "
         "counts, not a clinician-assigned diagnosis, so metrics reflect "
         "agreement with that proxy label rather than ground-truth caries status.",
@@ -350,8 +350,8 @@ with open("MODEL_EVALUATION.md", "w", encoding="utf-8") as f:
             f"{bm['held_out_accuracy_95ci'][1]:.4f})\n")
     f.write(f"- Held-out ROC-AUC: {bm['held_out_roc_auc']:.4f}\n")
     f.write(f"- Held-out Cohen's Kappa: {bm['held_out_cohen_kappa']:.4f}\n")
-    f.write(f"- 5-fold CV ROC-AUC: {bm['cv_5fold_roc_auc_mean']:.4f} ± {bm['cv_5fold_roc_auc_std']:.4f}\n")
-    f.write(f"- 5-fold CV F1-weighted: {bm['cv_5fold_f1_weighted_mean']:.4f} ± "
+    f.write(f"- 5-fold CV ROC-AUC: {bm['cv_5fold_roc_auc_mean']:.4f} +/- {bm['cv_5fold_roc_auc_std']:.4f}\n")
+    f.write(f"- 5-fold CV F1-weighted: {bm['cv_5fold_f1_weighted_mean']:.4f} +/- "
             f"{bm['cv_5fold_f1_weighted_std']:.4f}\n\n")
     if report["top_features"]:
         f.write("## Top features\n\n")
@@ -366,7 +366,7 @@ with open("MODEL_EVALUATION.md", "w", encoding="utf-8") as f:
 print("\nSaved MODEL_EVALUATION.json and MODEL_EVALUATION.md")
 
 
-# ── 13. SAVE MODEL ARTIFACTS ──────────────────────────────────────────────────
+# 13. SAVE MODEL ARTIFACTS
 joblib.dump(best_model, "caries_model.pkl")
 joblib.dump(features,   "feature_names.pkl")
 joblib.dump(threshold,  "caries_threshold.pkl")  # save threshold for reference

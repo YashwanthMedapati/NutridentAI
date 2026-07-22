@@ -23,8 +23,8 @@ Regenerate this file by running `python test_load.py` with the NHANES `.xpt` fil
 - Held-out accuracy: **0.7204** (95% bootstrap CI: 0.6995 - 0.7419)
 - Held-out ROC-AUC: 0.7982
 - Held-out Cohen's Kappa: 0.4382
-- 5-fold CV ROC-AUC: 0.7979 ± 0.0079
-- 5-fold CV F1-weighted: 0.7174 ± 0.0074
+- 5-fold CV ROC-AUC: 0.7979 +/- 0.0079
+- 5-fold CV F1-weighted: 0.7174 +/- 0.0074
 
 ## Top features
 
@@ -43,5 +43,5 @@ Regenerate this file by running `python test_load.py` with the NHANES `.xpt` fil
 
 ## Notes
 
-- Educational/research use only — not a clinical diagnostic tool.
+- Educational/research use only - not a clinical diagnostic tool.
 - The caries_risk label is derived from a median split of tooth-surface counts, not a clinician-assigned diagnosis, so metrics reflect agreement with that proxy label rather than ground-truth caries status.
