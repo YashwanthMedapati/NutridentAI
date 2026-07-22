@@ -321,10 +321,10 @@ report = {
     ],
 }
 
-with open("MODEL_EVALUATION.json", "w") as f:
+with open("MODEL_EVALUATION.json", "w", encoding="utf-8") as f:
     json.dump(report, f, indent=2)
 
-with open("MODEL_EVALUATION.md", "w") as f:
+with open("MODEL_EVALUATION.md", "w", encoding="utf-8") as f:
     f.write(f"# Model Evaluation Report\n\n")
     f.write(f"Generated: {report['generated_at']}")
     if report["git_commit"]:

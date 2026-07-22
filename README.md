@@ -48,9 +48,11 @@ MODEL_VERSION=local-dev
 # Optional rate limiting (defaults shown below; set RATE_LIMIT_ENABLED=false to disable)
 RATE_LIMIT_DEFAULT=60/minute
 RATE_LIMIT_EXTERNAL=20/minute
+# Optional: share rate-limit counters across multiple backend instances/workers
+# REDIS_URL=redis://localhost:6379/0
 ```
 
-Requests to endpoints that call USDA, Open Food Facts, or Google Vision are rate-limited per client IP (`RATE_LIMIT_EXTERNAL`) to avoid exhausting those providers' quotas; all other endpoints use the more permissive `RATE_LIMIT_DEFAULT`.
+Requests to endpoints that call USDA, Open Food Facts, or Google Vision are rate-limited per client IP (`RATE_LIMIT_EXTERNAL`) to avoid exhausting those providers' quotas; all other endpoints use the more permissive `RATE_LIMIT_DEFAULT`. Rate-limit counters are in-memory per process by default — fine for a single instance, but each worker/replica behind a load balancer would track its own counters independently. Set `REDIS_URL` to share counters across instances; if it's set but unreachable at startup, the backend falls back to in-memory storage and logs a warning rather than failing to boot.
 
 Run the API from the `Caries` folder or repo root:
 
@@ -122,7 +124,9 @@ pip install pandas xgboost
 python test_load.py
 ```
 
-This trains and compares Logistic Regression, Random Forest, and XGBoost on an 80/20 stratified split, runs 5-fold cross-validation, computes a bootstrap 95% confidence interval on held-out accuracy, and writes the full comparison to `Caries/MODEL_EVALUATION.md` and `.json` alongside the updated `.pkl` artifacts. Re-run it and check that report before trusting any specific accuracy figure — the committed model's exact numbers depend on the NHANES snapshot it was trained on and haven't been independently re-verified outside of this script.
+This trains and compares Logistic Regression, Random Forest, and XGBoost on an 80/20 stratified split, runs 5-fold cross-validation, computes a bootstrap 95% confidence interval on held-out accuracy, and writes the full comparison to `Caries/MODEL_EVALUATION.md` and `.json` alongside the updated `.pkl` artifacts.
+
+Current committed model (Random Forest, selected by ROC-AUC, NHANES 2017-2018): **72.04% held-out accuracy** (95% bootstrap CI: 69.95%-74.19%), ROC-AUC 0.798, Cohen's Kappa 0.438, 5-fold CV ROC-AUC 0.798 ± 0.008 — see `Caries/MODEL_EVALUATION.md` for the full breakdown, including per-model comparison and feature importances. Re-run `test_load.py` after pulling a fresh NHANES cycle and diff the regenerated report against the committed one before trusting a specific number long-term.
 
 Full local preflight:
 

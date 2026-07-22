@@ -36,6 +36,9 @@ GOOGLE_API_KEY=...
 CORS_ORIGINS=https://your-frontend-domain.com
 MAX_IMAGE_BYTES=8388608
 MODEL_VERSION=production
+# If running more than one backend instance/worker behind a load balancer,
+# set REDIS_URL so rate-limit counters are shared instead of per-instance:
+# REDIS_URL=redis://your-redis-host:6379/0
 ```
 
 Install:

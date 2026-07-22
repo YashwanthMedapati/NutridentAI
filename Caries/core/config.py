@@ -18,6 +18,12 @@ RATE_LIMIT_DEFAULT = os.getenv("RATE_LIMIT_DEFAULT", "60/minute")
 RATE_LIMIT_EXTERNAL = os.getenv("RATE_LIMIT_EXTERNAL", "20/minute")
 RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() not in {"0", "false", "no"}
 
+# Rate-limit counters live in-memory per process by default, which is fine for
+# a single instance but resets independently on each worker/replica behind a
+# load balancer. Set REDIS_URL (e.g. redis://host:6379/0) to share counters
+# across instances instead.
+REDIS_URL = os.getenv("REDIS_URL")
+
 
 def split_origins(value: str | None) -> list[str]:
     if not value:
