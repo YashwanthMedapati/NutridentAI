@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useApp } from "../context/AppContext";
-import { RiskBadge, NutritionGrid, Alert, Spinner } from "../components/UI";
+import { RiskBadge, NutritionGrid, MacroAnalysis, Alert, Spinner } from "../components/UI";
 import { Html5Qrcode } from "html5-qrcode";
+import { apiFetch } from "../api";
 
 // ── NET ORAL RISK COLOUR ───────────────────────────────────────────────────────
 function riskColor(label) {
@@ -39,6 +40,39 @@ const CAT_COLORS = {
   "Dental Care": "#22c55e",
 };
 
+const INGREDIENT_CALORIE_WEIGHTS = {
+  cheese: 0.24,
+  salami: 0.18,
+  pepperoni: 0.18,
+  sausage: 0.18,
+  ham: 0.12,
+  "pizza crust": 0.35,
+  crust: 0.35,
+  dough: 0.35,
+  tomato: 0.06,
+  olives: 0.06,
+  peppers: 0.05,
+  mushrooms: 0.04,
+  basil: 0.01,
+};
+
+function ingredientCalorieBreakdown(ingredients = [], nutrition) {
+  const total = Number(nutrition?.energy_kcal || 0);
+  if (!total || !ingredients.length) return [];
+  const normalized = ingredients.map(item => {
+    const name = typeof item === "string" ? item : item.name;
+    const key = String(name || "").toLowerCase();
+    const weight = INGREDIENT_CALORIE_WEIGHTS[key] || 0.08;
+    return { name, confidence: item.confidence || "User", weight };
+  }).filter(item => item.name);
+  const totalWeight = normalized.reduce((sum, item) => sum + item.weight, 0) || 1;
+  return normalized.map(item => ({
+    ...item,
+    calories: Math.round(total * (item.weight / totalWeight)),
+    percent: Math.round((item.weight / totalWeight) * 100),
+  }));
+}
+
 export default function AnalyzeFood() {
   const { addToFoodLog } = useApp();
 
@@ -47,17 +81,21 @@ export default function AnalyzeFood() {
   const [imagePreview, setPreview] = useState(null);
   const [searchText, setSearchText] = useState("");
 
-  // Raw result from backend (per-100g values + portion_estimate)
+  // Raw result from backend (per 100 g values + portion_estimate)
   const [rawResult, setRawResult] = useState(null);
   // Displayed result (after portion scaling applied client-side for UI refresh)
   const [result, setResult]       = useState(null);
 
   const [loading, setLoading]     = useState(false);
   const [logged, setLogged]       = useState(false);
+  const [mealCategory, setMealCategory] = useState("Meal");
+  const [correctedFoodName, setCorrectedFoodName] = useState("");
+  const [userIngredients, setUserIngredients] = useState("");
 
   // Portion state: starts from AI estimate, user can override
   const [portionG, setPortionG]   = useState(null);
   const [portionEdited, setPortionEdited] = useState(false);
+  const [portionError, setPortionError] = useState(null);
 
   const fileRef    = useRef();
   const scannerRef = useRef(null); // holds the Html5Qrcode instance
@@ -148,15 +186,14 @@ export default function AnalyzeFood() {
     setBarcodeText(barcode);
     try {
       setLoading(true); setRawResult(null); setResult(null); setLogged(false);
-      const res = await fetch("http://127.0.0.1:8000/barcode-food-risk", {
+      const data = await apiFetch("/barcode-food-risk", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ barcode }),
       });
-      const data = await res.json();
       applyResult({ ...data, food_name_entered: data.product_name || barcode });
-    } catch {
-      setResult({ error: "Barcode lookup failed. Make sure the backend is running." });
+    } catch (error) {
+      setResult({ error: error.message || "Barcode lookup failed. Make sure the backend is running." });
     } finally {
       setLoading(false);
     }
@@ -171,14 +208,22 @@ export default function AnalyzeFood() {
   };
 
   // ── FILE HANDLER ─────────────────────────────────────────────────────────────
-  const handleFile = (e) => {
-    const f = e.target.files[0];
+  const loadImageFile = (f) => {
     if (!f) return;
     setImage(f); setRawResult(null); setResult(null); setLogged(false);
     setPortionG(null); setPortionEdited(false);
     const reader = new FileReader();
     reader.onload = ev => setPreview(ev.target.result);
     reader.readAsDataURL(f);
+  };
+
+  const handleFile = (e) => {
+    loadImageFile(e.target.files[0]);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    loadImageFile(e.dataTransfer.files?.[0]);
   };
 
   // ── SET RESULT + INITIALIZE PORTION ──────────────────────────────────────────
@@ -188,21 +233,34 @@ export default function AnalyzeFood() {
     const estimatedG = data?.portion_estimate?.g || 100;
     setPortionG(estimatedG);
     setPortionEdited(false);
+    setPortionError(null);
+    setCorrectedFoodName(data?.detected_food || data?.product_name || data?.food_name_entered || searchText || "");
+    setUserIngredients(
+      data?.image_insights?.detected_ingredients?.map(item => item.name).join(", ") ||
+      data?.ingredients ||
+      ""
+    );
   };
 
   // ── RE-FETCH WITH NEW PORTION ─────────────────────────────────────────────────
   const recalcWithPortion = async (newG) => {
     if (!rawResult) return;
-    const foodName = rawResult.food_name_entered || searchText || rawResult.detected_food || "";
+    const foodName = correctedFoodName || rawResult.food_name_entered || searchText || rawResult.detected_food || "";
     try {
-      const res = await fetch("http://127.0.0.1:8000/food-risk", {
+      setPortionError(null);
+      const path = rawResult.barcode ? "/barcode-food-risk" : "/food-risk";
+      const body = rawResult.barcode
+        ? { barcode: rawResult.barcode, portion_g: newG }
+        : { food_name: foodName, portion_g: newG };
+      const data = await apiFetch(path, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ food_name: foodName, portion_g: newG }),
+        body:    JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!data.error) setResult(data);
-    } catch { /* keep existing result */ }
+      setResult({ ...data, food_name_entered: rawResult.food_name_entered || data.product_name || foodName });
+    } catch (error) {
+      setPortionError(error.message || "Could not recalculate portion.");
+    }
   };
 
   const handlePortionChange = (e) => {
@@ -215,16 +273,20 @@ export default function AnalyzeFood() {
     recalcWithPortion(portionG);
   };
 
+  const applyCorrections = () => {
+    setPortionEdited(true);
+    recalcWithPortion(portionG);
+  };
+
   // ── ANALYZE IMAGE ─────────────────────────────────────────────────────────────
   const analyzeImage = async () => {
     if (!image) return;
     try {
       setLoading(true); setRawResult(null); setResult(null); setLogged(false);
       const fd = new FormData(); fd.append("file", image);
-      const res  = await fetch("http://127.0.0.1:8000/image-food-risk", { method: "POST", body: fd });
-      const data = await res.json();
+      const data = await apiFetch("/image-food-risk", { method: "POST", body: fd });
       applyResult(data);
-    } catch { setResult({ error: "Image analysis failed. Check backend." }); }
+    } catch (error) { setResult({ error: error.message || "Image analysis failed. Check backend." }); }
     finally   { setLoading(false); }
   };
 
@@ -233,21 +295,26 @@ export default function AnalyzeFood() {
     if (!searchText.trim()) return;
     try {
       setLoading(true); setRawResult(null); setResult(null); setLogged(false);
-      const res = await fetch("http://127.0.0.1:8000/food-risk", {
+      const data = await apiFetch("/food-risk", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ food_name: searchText }),
       });
-      const data = await res.json();
       applyResult({ ...data, food_name_entered: searchText });
-    } catch { setResult({ error: "Search failed. Check backend." }); }
+    } catch (error) { setResult({ error: error.message || "Search failed. Check backend." }); }
     finally   { setLoading(false); }
   };
 
   // ── LOG FOOD ──────────────────────────────────────────────────────────────────
   const logFood = () => {
     if (result?.nutrition) {
-      addToFoodLog({ ...result, food_name_entered: result.detected_food || searchText });
+      addToFoodLog({
+        ...result,
+        food_name_entered: correctedFoodName || result.detected_food || searchText,
+        corrected_food_name: correctedFoodName || null,
+        user_ingredients: userIngredients || null,
+        mealCategory,
+      });
       setLogged(true);
     }
   };
@@ -256,9 +323,23 @@ export default function AnalyzeFood() {
   const riskLevel    = risk?.food_risk_level;
   const portionInfo  = result?.portion_estimate;
   const nutrition    = result?.nutrition;
+  const imageInsights = result?.image_insights;
+  const analysisQuality = result?.analysis_quality;
+  const calorieBreakdown = result?.calorie_breakdown;
+  const visibleIngredients = userIngredients
+    ? userIngredients.split(",").map(name => ({ name: name.trim(), confidence: "User" })).filter(item => item.name)
+    : imageInsights?.detected_ingredients || [];
+  const ingredientCalories = calorieBreakdown?.ingredient_estimates?.length
+    ? calorieBreakdown.ingredient_estimates
+    : ingredientCalorieBreakdown(visibleIngredients, nutrition);
+  const portionOptions = portionInfo?.options || [
+    { label: "Small",  g: Math.round((portionInfo?.g || 150) * 0.65) },
+    { label: "Medium", g: portionInfo?.g || 150 },
+    { label: "Large",  g: Math.round((portionInfo?.g || 150) * 1.4)  },
+  ];
 
   return (
-    <div className="page">
+    <div className="page analyze-page">
       <div className="page-header">
         <h1 className="page-title">Analyze Food</h1>
         <p className="page-sub">
@@ -293,6 +374,8 @@ export default function AnalyzeFood() {
             <div
               className={`upload-zone large-zone ${imagePreview ? "has-preview" : ""}`}
               onClick={() => fileRef.current.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
             >
               {imagePreview
                 ? <img src={imagePreview} alt="food" className="preview-img" />
@@ -424,6 +507,18 @@ export default function AnalyzeFood() {
         )}
       </div>
 
+      {loading && (
+        <div className="ai-scan-status">
+          <div className="ai-scan-orbit">
+            <span>AI</span>
+          </div>
+          <div>
+            <strong>Analyzing nutrition and dental risk</strong>
+            <p>Detecting food, matching USDA data, estimating portion, and preparing macro details.</p>
+          </div>
+        </div>
+      )}
+
       {/* ERROR */}
       {result?.error && <Alert type="error">{result.error}</Alert>}
 
@@ -441,7 +536,107 @@ export default function AnalyzeFood() {
             </span>
           </div>
 
+          {analysisQuality && (
+            <div className={`analysis-quality-card quality-${(analysisQuality.confidence || "low").toLowerCase()}`}>
+              <div>
+                <span className="micro-label">Analysis Confidence</span>
+                <h3>{analysisQuality.confidence} confidence calorie estimate</h3>
+                <p>{analysisQuality.notes?.[0]}</p>
+              </div>
+              <div className="analysis-quality-meta">
+                <span>{Math.round((analysisQuality.confidence_score || 0) * 100)}% score</span>
+                <span>{analysisQuality.source}</span>
+                {analysisQuality.requires_user_review && <strong>Review before logging</strong>}
+              </div>
+            </div>
+          )}
+
+          {imageInsights && (
+            <div className="image-insights-card">
+              <div className="image-insights-head">
+                <span className="micro-label">Photo Observations</span>
+                <span className="label-source-badge">{imageInsights.source || "Image analysis"}</span>
+              </div>
+              {imageInsights.observation_note && (
+                <p className="image-observation-note">{imageInsights.observation_note}</p>
+              )}
+              {imageInsights.detected_ingredients?.length > 0 && (
+                <div className="ingredient-chip-row">
+                  {imageInsights.detected_ingredients.map((item) => (
+                    <span key={item.name} className="ingredient-chip">
+                      {item.name}
+                      <small>{item.confidence}</small>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {imageInsights.visible_amount?.basis && (
+                <p className="image-basis-note">{imageInsights.visible_amount.basis}</p>
+              )}
+            </div>
+          )}
+
           {/* ── PORTION EDITOR ── */}
+          <div className="correction-card">
+            <div className="correction-head">
+              <div>
+                <span className="micro-label">Review Before Logging</span>
+                <h3>Correct the analysis if the photo estimate is off</h3>
+              </div>
+              <span className="correction-note">These values are saved to your food log.</span>
+            </div>
+            <div className="correction-grid">
+              <label className="field-label">
+                Food name
+                <input
+                  className="search-big-input"
+                  value={correctedFoodName}
+                  onChange={e => setCorrectedFoodName(e.target.value)}
+                  placeholder="e.g. vegetable salami pizza"
+                />
+              </label>
+              <label className="field-label">
+                Meal type
+                <select
+                  className="search-big-input"
+                  value={mealCategory}
+                  onChange={e => setMealCategory(e.target.value)}
+                >
+                  <option value="Breakfast">Breakfast</option>
+                  <option value="Lunch">Lunch</option>
+                  <option value="Dinner">Dinner</option>
+                  <option value="Snack">Snack</option>
+                  <option value="Meal">Meal</option>
+                </select>
+              </label>
+              <label className="field-label">
+                Portion weight
+                <input
+                  type="number"
+                  className="search-big-input"
+                  value={portionG || ""}
+                  onChange={handlePortionChange}
+                  min="10"
+                  max="2000"
+                  placeholder="grams"
+                />
+              </label>
+              <label className="field-label correction-wide">
+                Visible ingredients
+                <textarea
+                  className="correction-textarea"
+                  value={userIngredients}
+                  onChange={e => setUserIngredients(e.target.value)}
+                  placeholder="e.g. cheese, tomato, olives, salami, peppers"
+                />
+              </label>
+            </div>
+            <div className="correction-actions">
+              <button className="btn-primary" onClick={applyCorrections}>Apply Corrections</button>
+              <span>Nutrition and risk recalculate from food name and portion weight.</span>
+            </div>
+          </div>
+
           {portionInfo && (
             <div className="portion-editor-card">
               <div className="portion-editor-head">
@@ -452,26 +647,22 @@ export default function AnalyzeFood() {
               </div>
               <p className="portion-estimate-label">
                 {portionEdited
-                  ? `Using your portion: ${portionG}g`
+                  ? `Using your portion: ${portionG} g`
                   : `AI estimate: ${portionInfo.label}`
                 }
               </p>
               <p className="portion-note">
-                ℹ️ USDA values are per 100g. All nutrition and risk values below are scaled to your portion.
+                ℹ️ USDA values are per 100 g. All nutrition and risk values below are scaled to your portion.
               </p>
               <div className="portion-input-row">
                 <div className="portion-presets">
-                  {[
-                    { label: "Small",  g: Math.round((portionInfo.g || 150) * 0.65) },
-                    { label: "Medium", g: portionInfo.g || 150 },
-                    { label: "Large",  g: Math.round((portionInfo.g || 150) * 1.4)  },
-                  ].map(({ label, g }) => (
+                  {portionOptions.map(({ label, g }) => (
                     <button
                       key={label}
                       className={`portion-preset-btn ${portionG === g ? "active" : ""}`}
                       onClick={() => { setPortionG(g); recalcWithPortion(g); setPortionEdited(true); }}
                     >
-                      {label} ({g}g)
+                      {label} ({g} g)
                     </button>
                   ))}
                 </div>
@@ -490,6 +681,7 @@ export default function AnalyzeFood() {
                   </button>
                 </div>
               </div>
+              {portionError && <Alert type="error">{portionError}</Alert>}
             </div>
           )}
 
@@ -578,18 +770,58 @@ export default function AnalyzeFood() {
                 <span className="fr-kcal">{nutrition?.energy_kcal ?? "—"} kcal</span>
               </div>
               <div className="portion-tag">
-                For {portionG || portionInfo?.g || 100}g serving
+                For {portionG || portionInfo?.g || 100} g serving
               </div>
               <NutritionGrid nutrition={nutrition} />
+              <div className="macro-detail-card">
+                <div className="macro-detail-head">
+                  <span className="micro-label">Detailed Macro Analysis</span>
+                  <strong>{nutrition?.energy_kcal ?? "-"} kcal total</strong>
+                </div>
+                <MacroAnalysis nutrition={nutrition} />
+              </div>
 
-              {/* Per-100g comparison */}
+              {ingredientCalories.length > 0 && (
+                <div className="ingredient-calorie-card">
+                  <div className="macro-detail-head">
+                    <span className="micro-label">Ingredient Calorie Breakdown</span>
+                    <strong>{nutrition?.energy_kcal ?? "-"} kcal total</strong>
+                  </div>
+                  <p>
+                    Total calories are calculated from the matched USDA food and your portion size.
+                    This table estimates how visible ingredients contribute to that total; it is not a direct ingredient-by-ingredient measurement.
+                  </p>
+                  <div className="ingredient-calorie-list">
+                    {ingredientCalories.map(item => (
+                      <div className="ingredient-calorie-row" key={item.name}>
+                        <span>{item.name}<small>{item.confidence}</small></span>
+                        <div className="ingredient-calorie-track">
+                          <div style={{ width: `${item.percent}%` }} />
+                        </div>
+                        <strong>{item.calories} kcal</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Per 100 g comparison */}
               {result?.nutrition_per_100g && (
                 <div className="per100g-note">
-                  <span className="micro-label">Per 100g reference</span>
+                  <span className="micro-label">Per 100 g reference</span>
                   <div className="per100g-row">
-                    <span>{result.nutrition_per_100g.energy_kcal ?? "—"} kcal</span>
-                    <span>{result.nutrition_per_100g.sugar_g ?? "—"}g sugar</span>
-                    <span>{result.nutrition_per_100g.carbs_g ?? "—"}g carbs</span>
+                    <span>
+                      <small>Calories</small>
+                      <strong>{result.nutrition_per_100g.energy_kcal ?? "-"} kcal</strong>
+                    </span>
+                    <span>
+                      <small>Sugar</small>
+                      <strong>{result.nutrition_per_100g.sugar_g ?? "-"} g</strong>
+                    </span>
+                    <span>
+                      <small>Carbs</small>
+                      <strong>{result.nutrition_per_100g.carbs_g ?? "-"} g</strong>
+                    </span>
                   </div>
                 </div>
               )}
@@ -599,7 +831,7 @@ export default function AnalyzeFood() {
             <div className="fr-card">
               <div className="fr-card-head">
                 <span className="fr-card-icon">🩺</span>
-                <h3 className="fr-card-title">AI Dentist Notes</h3>
+                <h3 className="fr-card-title">Oral Health Notes</h3>
               </div>
               {risk?.dentist_notes?.length > 0
                 ? (
@@ -654,12 +886,13 @@ export default function AnalyzeFood() {
           {risk?.frequency_risk && (
             <div className="freq-risk-card">
               <div className="fr-card-head">
-                <span className="fr-card-icon">🔁</span>
+                <span className="fr-card-icon freq-icon-pulse">R</span>
                 <h3 className="fr-card-title">Food Frequency Risk</h3>
               </div>
               <p className="freq-explanation">{risk.frequency_risk.explanation}</p>
               <div className="freq-comparison">
                 <div className="freq-item">
+                  <span className="freq-icon">1x</span>
                   <span className="freq-label">Occasional intake</span>
                   <span
                     className="freq-badge"
@@ -667,10 +900,11 @@ export default function AnalyzeFood() {
                   >
                     {risk.frequency_risk.occasional_risk} Risk
                   </span>
-                  <p className="freq-note">Eating 1–2× per week — limited acid exposure cycles</p>
+                  <p className="freq-note">Eating 1-2 times per week creates fewer acid exposure cycles.</p>
                 </div>
-                <div className="freq-divider">→</div>
+                <div className="freq-divider">-&gt;</div>
                 <div className="freq-item">
+                  <span className="freq-icon">7x</span>
                   <span className="freq-label">Frequent intake</span>
                   <span
                     className="freq-badge"
@@ -678,18 +912,18 @@ export default function AnalyzeFood() {
                   >
                     {risk.frequency_risk.frequent_risk} Risk
                   </span>
-                  <p className="freq-note">Eating daily or multiple times/day — repeated acid attacks</p>
+                  <p className="freq-note">Eating daily or multiple times per day repeats acid attacks.</p>
                 </div>
               </div>
             </div>
           )}
-
           {/* LOG BUTTON */}
           <div className="log-row">
-            {logged
-              ? <span className="log-success">✅ Added to today's food log</span>
-              : <button className="btn-primary" onClick={logFood}>+ Add to Food Log</button>
-            }
+            {logged ? (
+              <span className="log-success">Added to today's food log</span>
+            ) : (
+              <button className="btn-primary" onClick={logFood}>+ Add to Food Log</button>
+            )}
           </div>
         </div>
       )}

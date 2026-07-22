@@ -5,6 +5,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, Cell
 } from "recharts";
+import { apiFetch } from "../api";
 
 // ── RING PROGRESS ──────────────────────────────────────────────────────────────
 function Ring({ value, max, color, size = 80, label, sub }) {
@@ -35,30 +36,12 @@ function Ring({ value, max, color, size = 80, label, sub }) {
 }
 
 // ── PROGRESS BAR ──────────────────────────────────────────────────────────────
-function ProgressRow({ label, value, max, unit, color, warn }) {
-  const pct = Math.min((value / max) * 100, 100);
-  const over = value > max;
-  return (
-    <div className="coach-prog-row">
-      <div className="coach-prog-labels">
-        <span className="coach-prog-label">{label}</span>
-        <span className={`coach-prog-value ${over && warn ? "over-limit" : ""}`}>
-          {Math.round(value)}{unit} / {max}{unit}
-        </span>
-      </div>
-      <div className="coach-prog-track">
-        <div className="coach-prog-fill"
-          style={{ width: `${pct}%`, background: over && warn ? "var(--high)" : color }} />
-      </div>
-    </div>
-  );
-}
-
 // ── MEAL SECTION ──────────────────────────────────────────────────────────────
 function MealSection({ mealName, items, onRemove, onAdd, icon }) {
   const [searchText, setSearchText] = useState("");
   const [searching, setSearching]   = useState(false);
   const [open, setOpen]             = useState(false);
+  const [error, setError]           = useState(null);
 
   const mealKcal = items.reduce((s, f) => s + (f.nutrition?.energy_kcal || 0), 0);
 
@@ -66,18 +49,18 @@ function MealSection({ mealName, items, onRemove, onAdd, icon }) {
     if (!searchText.trim()) return;
     try {
       setSearching(true);
-      const res = await fetch("http://127.0.0.1:8000/food-risk", {
+      setError(null);
+      const data = await apiFetch("/food-risk", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ food_name: searchText }),
       });
-      const data = await res.json();
-      if (!data.error) {
-        onAdd(mealName, { ...data, food_name_entered: searchText });
-        setSearchText("");
-        setOpen(false);
-      }
-    } catch { /* silent */ }
+      onAdd(mealName, { ...data, food_name_entered: searchText });
+      setSearchText("");
+      setOpen(false);
+    } catch (err) {
+      setError(err.message || "Could not add this food.");
+    }
     finally { setSearching(false); }
   };
 
@@ -135,6 +118,7 @@ function MealSection({ mealName, items, onRemove, onAdd, icon }) {
               {searching ? <Spinner /> : "+ Add"}
             </button>
           </div>
+          {error && <Alert type="error">{error}</Alert>}
         </div>
       )}
     </div>
@@ -157,6 +141,7 @@ export default function Coach() {
   const [activeTab, setActiveTab]   = useState("dashboard");
   const [weightInput, setWeightInput] = useState("");
   const [showProfile, setShowProfile] = useState(false);
+  const [nutritionOpen, setNutritionOpen] = useState(false);
 
   const ct      = calorieTargets();
   const cario   = dailyCarioLoad();
@@ -179,6 +164,22 @@ export default function Coach() {
 
   const scoreColor = wScore >= 75 ? "var(--low)" : wScore >= 50 ? "var(--medium)" : "var(--high)";
   const carioColor = cario.label === "Low" ? "var(--low)" : cario.label === "Moderate" ? "var(--medium)" : "var(--high)";
+  const macroTargets = {
+    protein_g: Number(profile.protein_target_g) || TARGETS.protein_g,
+    carbs_g: Number(profile.carbs_target_g) || TARGETS.carbs_g,
+    fat_g: Number(profile.fat_target_g) || TARGETS.fat_g,
+    sugar_g: Number(profile.sugar_limit_g) || TARGETS.sugar_g,
+    fiber_g: Number(profile.fiber_target_g) || TARGETS.fiber_g,
+  };
+  const nutrientRings = [
+    { label: "Calories", value: kcal, max: ct.target, unit: "kcal", color: "var(--medium)", size: 112 },
+    { label: "Protein", value: protein, max: macroTargets.protein_g, unit: "g", color: "#3b82f6" },
+    { label: "Carbs", value: carbs, max: macroTargets.carbs_g, unit: "g", color: "#f59e0b" },
+    { label: "Fat", value: fat, max: macroTargets.fat_g, unit: "g", color: "#a78bfa" },
+    { label: "Sugar", value: sugar, max: macroTargets.sugar_g, unit: "g", color: sugar > macroTargets.sugar_g ? "var(--high)" : "#22c55e" },
+    { label: "Calcium", value: calcium, max: TARGETS.calcium_mg, unit: "mg", color: "#22d3ee" },
+    { label: "Fiber", value: fiber, max: macroTargets.fiber_g, unit: "g", color: "#86efac" },
+  ];
 
   const MEAL_ICONS = { Breakfast: "🌅", Lunch: "☀️", Dinner: "🌙", Snacks: "🍎" };
 
@@ -221,6 +222,7 @@ export default function Coach() {
               { label: "Height (cm)",   name: "height",      placeholder: "e.g. 170", type: "number" },
               { label: "Weight (kg)",   name: "weight",      placeholder: "e.g. 70",  type: "number" },
               { label: "Goal (kg)",     name: "goal_weight", placeholder: "e.g. 65",  type: "number" },
+              { label: "Goal Date",     name: "goal_date",   placeholder: "",         type: "date" },
             ].map(({ label, name, placeholder, type }) => (
               <div className="field" key={name}>
                 <label className="field-label">{label}</label>
@@ -234,6 +236,16 @@ export default function Coach() {
               <select value={profile.gender} onChange={e => setProfile(p => ({ ...p, gender: e.target.value }))}>
                 <option value="1">Male</option>
                 <option value="2">Female</option>
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label">Physical Activity</label>
+              <select value={profile.activity_level || "sedentary"} onChange={e => setProfile(p => ({ ...p, activity_level: e.target.value }))}>
+                <option value="sedentary">Sedentary</option>
+                <option value="light">Light activity</option>
+                <option value="moderate">Moderate activity</option>
+                <option value="active">Active</option>
+                <option value="athlete">Very active</option>
               </select>
             </div>
             <div className="field">
@@ -276,13 +288,6 @@ export default function Coach() {
             </div>
 
             <div className="coach-score-card">
-              <span className="coach-score-label">Nutrition Completion</span>
-              <Ring value={nutPct} max={100} color="var(--low)" size={100}
-                label={`${nutPct}%`} sub="targets" />
-              <span className="coach-score-sub">Daily nutrient targets</span>
-            </div>
-
-            <div className="coach-score-card">
               <span className="coach-score-label">Daily Cariogenic Load</span>
               <div className="cario-display">
                 <span className="cario-score" style={{ color: carioColor }}>{cario.label}</span>
@@ -299,32 +304,50 @@ export default function Coach() {
             </div>
           </div>
 
-          {/* Calorie ring + macros */}
-          <div className="coach-macro-section">
-            <div className="coach-macro-header">
-              <h3 className="coach-section-title">Today's Nutrition</h3>
-              <span className="coach-cal-summary">
-                {Math.round(kcal)} / {ct.target} kcal
-              </span>
-            </div>
+          {/* Collapsible nutrient rings */}
+          <div className={`coach-macro-section ${nutritionOpen ? "open" : "collapsed"}`}>
+            <button className="coach-macro-header collapsible-head" onClick={() => setNutritionOpen(open => !open)}>
+              <div>
+                <h3 className="coach-section-title">Today's Nutrition</h3>
+                <span className="coach-section-sub">Detailed calorie and nutrient progress</span>
+              </div>
+              <div className="coach-macro-head-right">
+                <span className="coach-cal-summary">
+                  {Math.round(kcal)} / {ct.target} kcal
+                </span>
+                <span className="collapse-indicator">{nutritionOpen ? "Hide" : "Show"}</span>
+              </div>
+            </button>
 
-            {/* Calorie ring */}
-            <div className="coach-cal-row">
-              <Ring value={kcal} max={ct.target} color="var(--medium)" size={120}
-                label={`${Math.round(kcal)}`} sub="kcal" />
-              <div className="coach-macros-grid">
-                {[
-                  { label: "Protein",    value: protein,  max: TARGETS.protein_g,   unit: "g",  color: "#3b82f6" },
-                  { label: "Carbs",      value: carbs,    max: TARGETS.carbs_g,     unit: "g",  color: "#f59e0b" },
-                  { label: "Fat",        value: fat,      max: TARGETS.fat_g,       unit: "g",  color: "#a78bfa" },
-                  { label: "Sugar",      value: sugar,    max: TARGETS.sugar_g,     unit: "g",  color: "var(--high)", warn: true },
-                  { label: "Calcium",    value: calcium,  max: TARGETS.calcium_mg,  unit: "mg", color: "#22d3ee" },
-                  { label: "Fiber",      value: fiber,    max: TARGETS.fiber_g,     unit: "g",  color: "#86efac" },
-                ].map(m => (
-                  <ProgressRow key={m.label} {...m} />
+            {!nutritionOpen && (
+              <div className="coach-macro-collapsed-row">
+                <Ring value={nutPct} max={100} color="var(--low)" size={84}
+                  label={`${nutPct}%`} sub="targets" />
+                <div>
+                  <strong>Daily nutrient targets stay visible.</strong>
+                  <p>Open this section to inspect calories, macros, sugar, calcium, and fiber as individual circle graphs.</p>
+                </div>
+              </div>
+            )}
+
+            {nutritionOpen && (
+              <div className="nutrient-ring-grid">
+                {nutrientRings.map(item => (
+                  <div className="nutrient-ring-card" key={item.label}>
+                    <Ring
+                      value={item.value}
+                      max={item.max}
+                      color={item.color}
+                      size={item.size || 96}
+                      label={`${Math.round(item.value)}`}
+                      sub={item.unit}
+                    />
+                    <span className="nutrient-ring-label">{item.label}</span>
+                    <span className="nutrient-ring-target">Target {item.max}{item.unit}</span>
+                  </div>
                 ))}
               </div>
-            </div>
+            )}
           </div>
 
           {/* Streaks */}
@@ -498,6 +521,13 @@ export default function Coach() {
                 <div className="cp-item"><span className="cp-label">Maintenance</span><strong className="cp-val">{ct.maintenance} kcal</strong></div>
                 <div className="cp-item"><span className="cp-label">Your Target</span><strong className="cp-val" style={{ color: "var(--low)" }}>{ct.target} kcal</strong></div>
                 <div className="cp-item"><span className="cp-label">Goal</span><strong className="cp-val">{profile.goal_type}</strong></div>
+                {profile.goal_date && <div className="cp-item"><span className="cp-label">By</span><strong className="cp-val">{profile.goal_date}</strong></div>}
+              </div>
+              <div className="calorie-plan-grid">
+                <div className="cp-item"><span className="cp-label">Protein</span><strong className="cp-val">{macroTargets.protein_g} g</strong></div>
+                <div className="cp-item"><span className="cp-label">Carbs</span><strong className="cp-val">{macroTargets.carbs_g} g</strong></div>
+                <div className="cp-item"><span className="cp-label">Fat</span><strong className="cp-val">{macroTargets.fat_g} g</strong></div>
+                <div className="cp-item"><span className="cp-label">Sugar Limit</span><strong className="cp-val">{macroTargets.sugar_g} g</strong></div>
               </div>
             </div>
           )}

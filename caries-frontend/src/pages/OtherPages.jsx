@@ -1,7 +1,8 @@
 // src/pages/Charts.jsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useApp } from "../context/AppContext";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { apiFetch } from "../api";
 
 export function Charts() {
   const { foodLog, calculateCalories } = useApp();
@@ -152,6 +153,22 @@ export function Charts() {
 
 // ── ABOUT PAGE ────────────────────────────────────────────────────────────────
 export function About() {
+  const [modelInfo, setModelInfo] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    apiFetch("/model-info")
+      .then((data) => {
+        if (active) setModelInfo(data);
+      })
+      .catch(() => {
+        if (active) setModelInfo(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="page">
       <div className="page-header">
@@ -194,6 +211,18 @@ export function About() {
           <p>It combines your patient profile with real-time food nutrition data from the <strong>USDA FoodData Central API</strong> (600,000+ foods) and <strong>Google Vision AI</strong> for photo-based food detection to generate a personalised caries risk estimate.</p>
           <p>The model outputs a probability score and highlights which specific factors in your lifestyle are contributing most to your risk.</p>
         </div>
+
+        {modelInfo && (
+          <div className="about-section">
+            <h2 className="about-heading">Model Transparency</h2>
+            <p><strong>Model:</strong> {modelInfo.model_type} ({modelInfo.model_version})</p>
+            <p><strong>Features:</strong> {modelInfo.feature_count} patient, diet, smoking, and eating-pattern inputs.</p>
+            <p><strong>Training data:</strong> {modelInfo.training_data}</p>
+            <ul className="reason-list">
+              {modelInfo.limitations?.map((item, index) => <li key={index}>{item}</li>)}
+            </ul>
+          </div>
+        )}
 
         <div className="about-disclaimer">
           <strong>⚠️ Medical Disclaimer</strong>
@@ -256,12 +285,12 @@ export function PreviousResults() {
       <div className="page">
         <div className="page-header">
           <h1 className="page-title">Previous Results</h1>
-          <p className="page-sub">Your assessment history from this session.</p>
+          <p className="page-sub">Your assessment history saved in this browser.</p>
         </div>
         <div className="empty-state">
           <div className="empty-icon">📋</div>
           <h3>No results yet</h3>
-          <p>Run a risk assessment to see your history here. Results are stored for this session only.</p>
+          <p>Run a risk assessment to see your history here. Results are stored locally in this browser.</p>
         </div>
       </div>
     );
@@ -271,7 +300,7 @@ export function PreviousResults() {
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">Previous Results</h1>
-        <p className="page-sub">{previousResults.length} assessment{previousResults.length !== 1 ? "s" : ""} this session.</p>
+        <p className="page-sub">{previousResults.length} saved assessment{previousResults.length !== 1 ? "s" : ""} in this browser.</p>
       </div>
       <div className="prev-results-list">
         {previousResults.map((r, i) => (
@@ -324,6 +353,42 @@ export function PreviousResults() {
         ))}
       </div>
       <p className="session-note">Note: Results are stored in-session only and will be cleared on page refresh.</p>
+    </div>
+  );
+}
+
+export function Privacy() {
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h1 className="page-title">Privacy & Safety</h1>
+        <p className="page-sub">How NutriDent AI handles food, weight, and dental-risk information.</p>
+      </div>
+
+      <div className="about-grid">
+        <div className="about-section">
+          <h2 className="about-heading">Local Data Storage</h2>
+          <p>Food logs, weight logs, profile values, and previous results are currently stored in this browser using local storage. They are not synced to a cloud account yet.</p>
+          <p>If you clear browser data or use a different device, this local history may not be available.</p>
+        </div>
+
+        <div className="about-section">
+          <h2 className="about-heading">External APIs</h2>
+          <p>Food search uses USDA FoodData Central. Photo analysis uses Google Vision API through the backend. Uploaded food images are sent to the backend for analysis and then to the configured Vision API provider.</p>
+          <p>Do not upload images that contain faces, documents, or sensitive personal information.</p>
+        </div>
+
+        <div className="about-section">
+          <h2 className="about-heading">Medical Disclaimer</h2>
+          <p>NutriDent AI is educational and research-oriented. It is not a clinical diagnosis, medical device, or replacement for a dentist, physician, or registered dietitian.</p>
+          <p>Use the results as a coaching signal and discuss dental or nutrition concerns with a qualified professional.</p>
+        </div>
+
+        <div className="about-section">
+          <h2 className="about-heading">Production Recommendation</h2>
+          <p>Before enabling real accounts or cloud sync, deploy with authenticated database access, row-level user isolation, HTTPS-only API calls, and a clear data deletion/export flow.</p>
+        </div>
+      </div>
     </div>
   );
 }
