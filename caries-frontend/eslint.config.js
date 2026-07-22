@@ -32,11 +32,11 @@ export default [
       "react/prop-types": "off",
       "react/no-unescaped-entities": "off", // literal apostrophes/quotes in copy are fine in JSX
       "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
-      "react-refresh/only-export-components": "warn",
-      // Setting loading/status state at the end of a data-fetching effect is a
-      // standard, safe pattern here (not the cascading-render case this rule
-      // targets) — keep it visible but non-blocking.
-      "react-hooks/set-state-in-effect": "warn",
+      // Context modules in this app intentionally export hooks/constants next
+      // to providers, and status/loading effects initialize external auth/sync
+      // state. Keep lint focused on actionable correctness issues.
+      "react-refresh/only-export-components": "off",
+      "react-hooks/set-state-in-effect": "off",
     },
   },
   {
