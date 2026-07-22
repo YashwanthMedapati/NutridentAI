@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+venv/
+*.xpt
+test_core.py
+test_endpoints.py
+test_load.py
+requirements-dev.txt
+pyproject.toml

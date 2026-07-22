@@ -18,16 +18,23 @@ Full-stack oral health and nutrition analytics platform using React, Vite, FastA
 
 ## Project Structure
 
-- `Caries/main.py` - FastAPI backend and scoring/model logic
+- `Caries/main.py` - FastAPI app assembly and route handlers (thin entrypoint)
+- `Caries/core/` - backend modules: config, schemas, portion/quality/risk scoring, USDA, Open Food Facts, Vision, patient model, rate limiting, middleware
 - `Caries/caries_model.pkl` - local trained model
 - `Caries/feature_names.pkl` - model feature order
-- `Caries/test_core.py` - backend unit tests for scoring, validation, image heuristics, and metadata
-- `Caries/test_load.py` - NHANES model training/rebuild script
+- `Caries/test_core.py` - unit tests for scoring, validation, image heuristics, and metadata
+- `Caries/test_endpoints.py` - integration tests for every API endpoint (mocked USDA/Vision/Open Food Facts calls), including rate limiting
+- `Caries/test_load.py` - NHANES model training/rebuild script; also produces `MODEL_EVALUATION.md`/`.json`
 - `caries-frontend/` - React app
 - `caries-frontend/src/` - Vite React source, contexts, pages, and tests
 - `database/schema.sql` - Supabase schema with RLS policies for authenticated cloud sync
 - `database/verify_security.sql` - Supabase RLS/grant verification queries
+- `.github/workflows/ci.yml` - GitHub Actions: runs backend/frontend lint, tests, and the frontend build on every push/PR to `main`
+- `Caries/Dockerfile` - optional container build for the backend (alongside the pip-based deploy flow below)
+- `Caries/pyproject.toml` - ruff lint config (`ruff check .` from `Caries/`)
+- `caries-frontend/eslint.config.js` - ESLint flat config (`npm run lint` from `caries-frontend/`)
 - `DEPLOYMENT.md` - production deployment checklist
+- `LICENSE` - MIT
 
 ## Backend Setup
 
@@ -38,7 +45,12 @@ USDA_API_KEY=your_usda_fooddata_central_key
 GOOGLE_API_KEY=your_google_vision_api_key
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001
 MODEL_VERSION=local-dev
+# Optional rate limiting (defaults shown below; set RATE_LIMIT_ENABLED=false to disable)
+RATE_LIMIT_DEFAULT=60/minute
+RATE_LIMIT_EXTERNAL=20/minute
 ```
+
+Requests to endpoints that call USDA, Open Food Facts, or Google Vision are rate-limited per client IP (`RATE_LIMIT_EXTERNAL`) to avoid exhausting those providers' quotas; all other endpoints use the more permissive `RATE_LIMIT_DEFAULT`.
 
 Run the API from the `Caries` folder or repo root:
 
@@ -91,26 +103,39 @@ npm test
 npm run build
 ```
 
-Backend smoke tests:
+Backend tests:
 
 ```powershell
-python -m unittest Caries.test_core
+cd C:\Users\yashw\Desktop\NutriDent-AI\Caries
+python -m unittest test_core test_endpoints -v
 ```
 
-Model retraining:
+`test_core.py` covers scoring/validation/image-heuristic unit behavior; `test_endpoints.py` exercises every API route end-to-end (USDA, Open Food Facts, and Google Vision calls are mocked) and verifies rate limiting actually triggers.
 
-`Caries/test_load.py` expects local NHANES `.xpt` files in the `Caries` folder. Those raw datasets are intentionally ignored because they are large training artifacts, not runtime dependencies. The deployed API uses the committed model artifacts instead.
+Model retraining and evaluation:
+
+`Caries/test_load.py` expects local NHANES `.xpt` files in the `Caries` folder (download from the [NHANES 2017-2018 data portal](https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx?BeginYear=2017)). Those raw datasets are intentionally untracked because they are large training artifacts, not runtime dependencies — the deployed API only needs the committed `.pkl` files. Running the script additionally requires `pandas` and `xgboost` (not in `requirements.txt`, since the serving API doesn't need them):
+
+```powershell
+cd C:\Users\yashw\Desktop\NutriDent-AI\Caries
+pip install pandas xgboost
+python test_load.py
+```
+
+This trains and compares Logistic Regression, Random Forest, and XGBoost on an 80/20 stratified split, runs 5-fold cross-validation, computes a bootstrap 95% confidence interval on held-out accuracy, and writes the full comparison to `Caries/MODEL_EVALUATION.md` and `.json` alongside the updated `.pkl` artifacts. Re-run it and check that report before trusting any specific accuracy figure — the committed model's exact numbers depend on the NHANES snapshot it was trained on and haven't been independently re-verified outside of this script.
 
 Full local preflight:
 
 ```powershell
-cd C:\Users\yashw\Desktop\NutriDent-AI
-.\Caries\venv\Scripts\python.exe -m unittest Caries.test_core
-cd caries-frontend
+cd C:\Users\yashw\Desktop\NutriDent-AI\Caries
+python -m unittest test_core test_endpoints
+cd ..\caries-frontend
 npm test
 npm run build
 npm audit
 ```
+
+Continuous integration: `.github/workflows/ci.yml` runs the backend and frontend suites (and the frontend production build) on every push and pull request to `main`.
 
 ## Supabase Setup
 

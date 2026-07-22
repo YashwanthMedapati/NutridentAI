@@ -1,0 +1,8 @@
+# Extra tooling for local development — not needed to run the API in production.
+-r requirements.txt
+ruff
+httpx        # required by fastapi.testclient.TestClient
+
+# Only needed to run test_load.py (model retraining/evaluation), not the API itself.
+pandas
+xgboost
