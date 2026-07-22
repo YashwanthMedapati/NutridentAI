@@ -1,852 +1,68 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Request
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Optional
-import joblib
-import numpy as np
 import os
+
 import requests
-import base64
-import logging
-from pathlib import Path
-from dotenv import load_dotenv
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
-BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
-logger = logging.getLogger("nutrident")
+from core.config import RATE_LIMIT_EXTERNAL, split_origins
+from core.errors import internal_error, read_validated_image
+from core.middleware import add_security_headers, log_requests
+from core.openfoodfacts import (
+    build_label_red_flags,
+    extract_off_nutrition,
+    fetch_off_product,
+    get_off_serving_g,
+)
 
-MAX_IMAGE_BYTES = int(os.getenv("MAX_IMAGE_BYTES", str(8 * 1024 * 1024)))
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
-
-def _split_origins(value: str | None) -> list[str]:
-    if not value:
-        return ["http://localhost:3000", "http://127.0.0.1:3000"]
-    return [origin.strip() for origin in value.split(",") if origin.strip()]
+# The following are unused directly in this file but are re-exported so that
+# `main.X` keeps working for test_core.py, which imports this module and
+# reaches into its internals (main.build_patient_features, main.scale_nutrition,
+# main._best_food_detection, etc.) rather than importing from core.* directly.
+from core.patient_model import (
+    build_patient_features,  # noqa: F401
+    combined_recommendation,
+    features,
+    generate_explanations,
+    model,
+    predict_patient_risk,
+)
+from core.portion import estimate_portion, scale_nutrition
+from core.quality import (  # noqa: F401
+    attach_analysis_metadata,
+    ingredient_calorie_breakdown,
+    nutrition_quality,
+)
+from core.rate_limit import limiter
+from core.risk_engine import food_risk_score
+from core.schemas import BarcodeInput, CombinedInput, FoodInput, PatientInput
+from core.usda import extract_nutrients, search_food
+from core.vision import (  # noqa: F401
+    _best_food_detection,
+    _visible_ingredients_from_terms,
+    _vision_terms,
+    analyze_food_image,
+    detect_food_from_image,
+    estimate_image_portion,
+)
 
 app = FastAPI()
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_split_origins(os.getenv("CORS_ORIGINS")),
+    allow_origins=split_origins(os.getenv("CORS_ORIGINS")),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("X-Frame-Options", "DENY")
-    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=()")
-    return response
-
-def _internal_error(context: str, error: Exception) -> HTTPException:
-    logger.exception("%s failed", context, exc_info=error)
-    return HTTPException(status_code=500, detail="Unexpected server error. Please try again.")
-
-async def read_validated_image(file: UploadFile) -> bytes:
-    content_type = (file.content_type or "").split(";")[0].lower()
-    if content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=415, detail="Upload a JPEG, PNG, WEBP, HEIC, or HEIF image.")
-
-    contents = await file.read(MAX_IMAGE_BYTES + 1)
-    if len(contents) > MAX_IMAGE_BYTES:
-        max_mb = round(MAX_IMAGE_BYTES / (1024 * 1024), 1)
-        raise HTTPException(status_code=413, detail=f"Image is too large. Maximum size is {max_mb} MB.")
-    if not contents:
-        raise HTTPException(status_code=422, detail="Uploaded image is empty.")
-    return contents
-
-USDA_API_KEY = os.getenv("USDA_API_KEY")
-SEARCH_URL   = "https://api.nal.usda.gov/fdc/v1/foods/search"
-
-model    = joblib.load(BASE_DIR / "caries_model.pkl")
-features = joblib.load(BASE_DIR / "feature_names.pkl")
-
-
-# ── PYDANTIC MODELS ────────────────────────────────────────────────────────────
-
-class PatientFields(BaseModel):
-    RIDAGEYR: float = Field(..., ge=1, le=120)
-    RIAGENDR: float = Field(..., ge=1, le=2)
-    DR1TSUGR: float = Field(..., ge=0, le=500)
-    DR1TCARB: float = Field(..., ge=0, le=1000)
-    DR1TTFAT: float = Field(..., ge=0, le=500)
-    DR1TKCAL: float = Field(..., ge=0, le=10000)
-    DR1TCALC: float = Field(..., ge=0, le=5000)
-    DR1TPHOS: float = Field(..., ge=0, le=5000)
-    DR1TSFAT: float = Field(..., ge=0, le=300)
-    SMD650: float = Field(0, ge=0, le=100)
-    SMQ040: float = Field(..., ge=1, le=3)
-    SMD030: float = Field(0, ge=0, le=120)
-    DBD895: float = Field(..., ge=0, le=21)
-    DBD900: float = Field(..., ge=0, le=21)
-    DBD905: float = Field(..., ge=0, le=21)
-    DBD910: float = Field(..., ge=0, le=21)
-
-    @model_validator(mode="after")
-    def validate_smoking_fields(self):
-        if self.SMQ040 in (1, 2) and self.SMD030 and self.SMD030 > self.RIDAGEYR:
-            raise ValueError("Smoking start age cannot be greater than current age")
-        if self.SMQ040 == 3:
-            self.SMD650 = 0
-            self.SMD030 = 0
-        return self
-
-class PatientInput(PatientFields):
-    pass
-
-class FoodInput(BaseModel):
-    food_name: str = Field(..., min_length=1, max_length=120)
-    portion_g: Optional[float] = Field(None, ge=1, le=2000)   # user-supplied or AI-estimated portion in grams
-
-    @field_validator("food_name")
-    @classmethod
-    def strip_food_name(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
-            raise ValueError("Food name cannot be empty")
-        return cleaned
-
-class BarcodeInput(BaseModel):
-    barcode: str = Field(..., pattern=r"^\d{8,14}$")  # EAN-13, UPC-A, UPC-E etc.
-    portion_g: Optional[float] = Field(None, ge=1, le=2000)  # user override; falls back to serving size on label
-
-class CombinedInput(PatientFields):
-    food_name: str = Field(..., min_length=1, max_length=120)
-    portion_g: Optional[float] = Field(None, ge=1, le=2000)
-
-    @field_validator("food_name")
-    @classmethod
-    def strip_food_name(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
-            raise ValueError("Food name cannot be empty")
-        return cleaned
-
-
-# ── PORTION SIZE HEURISTICS ────────────────────────────────────────────────────
-# USDA values are per 100g. We estimate realistic serving size from food category.
-# Returns: { grams, label, confidence }
-
-PORTION_DB = {
-    # Staples
-    "pasta":          {"g": 280, "label": "Medium bowl (~280g)", "confidence": "Moderate"},
-    "spaghetti":      {"g": 280, "label": "Medium bowl (~280g)", "confidence": "Moderate"},
-    "rice":           {"g": 200, "label": "Medium portion (~200g)", "confidence": "Moderate"},
-    "bread":          {"g": 60,  "label": "2 slices (~60g)",       "confidence": "High"},
-    "pizza":          {"g": 250, "label": "2 slices (~250g)",      "confidence": "Moderate"},
-    "burger":         {"g": 220, "label": "1 standard burger (~220g)", "confidence": "Moderate"},
-    "sandwich":       {"g": 200, "label": "1 sandwich (~200g)",   "confidence": "Moderate"},
-    # Fruits & Veg
-    "apple":          {"g": 182, "label": "1 medium apple (~182g)", "confidence": "High"},
-    "banana":         {"g": 118, "label": "1 medium banana (~118g)", "confidence": "High"},
-    "orange":         {"g": 131, "label": "1 medium orange (~131g)", "confidence": "High"},
-    "grapes":         {"g": 150, "label": "1 cup grapes (~150g)",  "confidence": "Moderate"},
-    "salad":          {"g": 200, "label": "Side salad (~200g)",    "confidence": "Low"},
-    "broccoli":       {"g": 150, "label": "1 cup broccoli (~150g)", "confidence": "Moderate"},
-    # Sweets & Snacks
-    "chocolate":      {"g": 40,  "label": "1 standard bar (~40g)", "confidence": "Moderate"},
-    "cake":           {"g": 120, "label": "1 slice (~120g)",       "confidence": "Moderate"},
-    "cookie":         {"g": 30,  "label": "1 cookie (~30g)",       "confidence": "Moderate"},
-    "chips":          {"g": 50,  "label": "Small bag (~50g)",      "confidence": "Moderate"},
-    "ice cream":      {"g": 130, "label": "1 scoop (~130g)",       "confidence": "Low"},
-    "donut":          {"g": 60,  "label": "1 donut (~60g)",        "confidence": "High"},
-    "candy":          {"g": 40,  "label": "Small handful (~40g)",  "confidence": "Low"},
-    # Proteins
-    "chicken":        {"g": 200, "label": "1 breast (~200g)",      "confidence": "Moderate"},
-    "beef":           {"g": 200, "label": "Medium steak (~200g)",  "confidence": "Moderate"},
-    "fish":           {"g": 180, "label": "1 fillet (~180g)",      "confidence": "Moderate"},
-    "egg":            {"g": 50,  "label": "1 large egg (~50g)",    "confidence": "High"},
-    "oatmeal":        {"g": 240, "label": "1 cup cooked (~240g)",  "confidence": "High"},
-    # Dairy
-    "milk":           {"g": 244, "label": "1 cup (~244ml)",        "confidence": "High"},
-    "yogurt":         {"g": 200, "label": "1 cup (~200g)",         "confidence": "High"},
-    "cheese":         {"g": 30,  "label": "1 slice (~30g)",        "confidence": "Moderate"},
-    # Drinks
-    "juice":          {"g": 240, "label": "1 cup (~240ml)",        "confidence": "High"},
-    "soda":           {"g": 355, "label": "1 can (~355ml)",        "confidence": "High"},
-    "coffee":         {"g": 240, "label": "1 cup (~240ml)",        "confidence": "High"},
-}
-
-DEFAULT_PORTION = {"g": 150, "label": "Estimated serving (~150g)", "confidence": "Low"}
-
-def estimate_portion(food_name: str) -> dict:
-    """Return portion estimate for a food name by keyword matching."""
-    name = food_name.lower()
-    for keyword, data in PORTION_DB.items():
-        if keyword in name:
-            return data
-    return DEFAULT_PORTION
-
-def scale_nutrition(nutrition_per_100g: dict, portion_g: float) -> dict:
-    """
-    USDA values are per 100g. Scale them to the actual portion size.
-    Returns a new nutrition dict with scaled values + portion metadata.
-    """
-    factor = portion_g / 100.0
-    scaled = {}
-    numeric_keys = ["sugar_g","carbs_g","fat_g","protein_g",
-                    "calcium_mg","phosphorus_mg","energy_kcal",
-                    "fiber_g","sodium_mg"]
-    for key in numeric_keys:
-        val = nutrition_per_100g.get(key, 0) or 0
-        scaled[key] = round(val * factor, 2)
-
-    scaled["food"]         = nutrition_per_100g.get("food", "Unknown")
-    scaled["data_reliable"] = nutrition_per_100g.get("data_reliable", True)
-    scaled["per_100g"]     = {k: nutrition_per_100g.get(k, 0) for k in numeric_keys}
-    scaled["portion_g"]    = round(portion_g, 1)
-    return scaled
-
-
-def _confidence_to_score(label: str | None) -> float:
-    value = (label or "").lower()
-    if value == "user":
-        return 1.0
-    if value == "high":
-        return 0.9
-    if value == "moderate":
-        return 0.65
-    if value == "low":
-        return 0.35
-    return 0.5
-
-
-def nutrition_quality(nutrition: dict, portion_info: dict | None = None,
-                      source: str = "USDA", image_based: bool = False) -> dict:
-    """
-    Explain how trustworthy the calorie estimate is. This is not a clinical
-    confidence score; it summarizes data completeness, portion certainty, and
-    whether the result came from a photo heuristic.
-    """
-    required = ["energy_kcal", "carbs_g", "fat_g", "protein_g"]
-    present = [key for key in required if nutrition.get("per_100g", {}).get(key) or nutrition.get(key)]
-    completeness = len(present) / len(required)
-    portion_confidence = _confidence_to_score((portion_info or {}).get("confidence"))
-    data_reliable = bool(nutrition.get("data_reliable", True))
-
-    score = completeness * 0.55 + portion_confidence * 0.35 + (0.10 if data_reliable else 0)
-    if image_based:
-        score -= 0.12
-    score = max(0.05, min(score, 1.0))
-
-    if score >= 0.78:
-        label = "High"
-    elif score >= 0.52:
-        label = "Moderate"
-    else:
-        label = "Low"
-
-    notes = []
-    if image_based:
-        notes.append("Photo results identify likely foods and visible ingredients, but cannot measure exact mass.")
-    if portion_confidence < 0.7:
-        notes.append("Portion size should be reviewed before logging.")
-    if not data_reliable or completeness < 0.75:
-        notes.append("The matched nutrition record is incomplete, so totals may be less reliable.")
-    if not notes:
-        notes.append("Calories are based on the matched nutrition record scaled to the selected portion.")
-
-    return {
-        "source": source,
-        "confidence": label,
-        "confidence_score": round(score, 2),
-        "data_completeness": round(completeness, 2),
-        "portion_confidence": (portion_info or {}).get("confidence", "Unknown"),
-        "requires_user_review": image_based or portion_confidence < 0.7 or not data_reliable,
-        "notes": notes,
-    }
-
-
-INGREDIENT_CALORIE_WEIGHTS = {
-    "cheese": 0.24,
-    "salami/pepperoni": 0.18,
-    "salami": 0.18,
-    "pepperoni": 0.18,
-    "sausage": 0.18,
-    "ham": 0.12,
-    "pizza crust": 0.35,
-    "crust": 0.35,
-    "dough": 0.35,
-    "tomato": 0.06,
-    "olives": 0.06,
-    "bell pepper": 0.05,
-    "peppers": 0.05,
-    "mushroom": 0.04,
-    "basil/herbs": 0.01,
-}
-
-
-def ingredient_calorie_breakdown(ingredients: list[dict] | None, nutrition: dict) -> list[dict]:
-    total = float(nutrition.get("energy_kcal") or 0)
-    if total <= 0 or not ingredients:
-        return []
-
-    rows = []
-    for item in ingredients:
-        name = item.get("name") if isinstance(item, dict) else str(item)
-        if not name:
-            continue
-        key = name.lower()
-        rows.append({
-            "name": name,
-            "confidence": item.get("confidence", "Estimated") if isinstance(item, dict) else "Estimated",
-            "weight": INGREDIENT_CALORIE_WEIGHTS.get(key, 0.08),
-        })
-
-    total_weight = sum(row["weight"] for row in rows) or 1
-    breakdown = []
-    running_total = 0
-    for index, row in enumerate(rows):
-        if index == len(rows) - 1:
-            calories = round(total) - running_total
-        else:
-            calories = round(total * (row["weight"] / total_weight))
-            running_total += calories
-        breakdown.append({
-            "name": row["name"],
-            "confidence": row["confidence"],
-            "calories": calories,
-            "percent": round((row["weight"] / total_weight) * 100),
-            "method": "Estimated share of matched food calories, not direct ingredient measurement",
-        })
-    return breakdown
-
-
-def attach_analysis_metadata(payload: dict, portion_info: dict, nutrition: dict,
-                             source: str, image_based: bool = False,
-                             ingredients: list[dict] | None = None) -> dict:
-    payload["analysis_quality"] = nutrition_quality(
-        nutrition,
-        portion_info=portion_info,
-        source=source,
-        image_based=image_based,
-    )
-    payload["calorie_breakdown"] = {
-        "total_kcal": nutrition.get("energy_kcal", 0),
-        "portion_g": nutrition.get("portion_g", portion_info.get("g")),
-        "per_100g_kcal": nutrition.get("per_100g", {}).get("energy_kcal", 0),
-        "ingredient_estimates": ingredient_calorie_breakdown(ingredients, nutrition),
-        "method": "Nutrition totals come from the matched food database record scaled by selected portion.",
-    }
-    return payload
-
-
-# ── USDA FILTERING ─────────────────────────────────────────────────────────────
-
-VALID_DATA_TYPES = {"Foundation", "SR Legacy", "Survey (FNDDS)", "Branded"}
-INVALID_KEYWORDS = [
-    "infant formula", "enteral", "medical food", "supplement",
-    "nutrient database", "study", "research", "survey", "nhanes",
-    "usda", "mixed dish", "recipe", "NFS", "not further specified"
-]
-
-def is_valid_food_item(food: dict) -> bool:
-    dtype = food.get("dataType", "")
-    desc  = food.get("description", "").lower()
-    if dtype not in VALID_DATA_TYPES:
-        return False
-    for kw in INVALID_KEYWORDS:
-        if kw.lower() in desc:
-            return False
-    return True
-
-def search_food(food_name: str, top_n: int = 10) -> dict | None:
-    if not USDA_API_KEY:
-        raise HTTPException(status_code=503, detail="USDA_API_KEY is not configured")
-    params = {
-        "query":    food_name,
-        "api_key":  USDA_API_KEY,
-        "pageSize": top_n,
-    }
-    response = requests.get(SEARCH_URL, params=params, timeout=30)
-    response.raise_for_status()
-    foods = response.json().get("foods", [])
-    priority = {"Foundation": 0, "SR Legacy": 1, "Survey (FNDDS)": 2, "Branded": 3}
-    valid = [f for f in foods if is_valid_food_item(f)]
-    if not valid:
-        valid = foods[:3]
-    valid.sort(key=lambda f: priority.get(f.get("dataType", ""), 99))
-    return valid[0] if valid else None
-
-
-# ── NUTRITION EXTRACTION ───────────────────────────────────────────────────────
-
-NUTRIENT_MAP = {
-    "sugar_g":       ["Total Sugars", "Sugars, total including NLEA", "Sugars, total"],
-    "carbs_g":       ["Carbohydrate, by difference", "Carbohydrates"],
-    "fat_g":         ["Total lipid (fat)", "Fat", "Total Fat"],
-    "protein_g":     ["Protein"],
-    "calcium_mg":    ["Calcium, Ca", "Calcium"],
-    "phosphorus_mg": ["Phosphorus, P", "Phosphorus"],
-    "energy_kcal":   ["Energy", "Energy (Atwater General Factors)", "Energy (Atwater Specific Factors)"],
-    "fiber_g":       ["Fiber, total dietary", "Total Dietary Fiber"],
-    "sodium_mg":     ["Sodium, Na", "Sodium"],
-}
-
-def extract_nutrients(food: dict) -> dict:
-    """Extract per-100g nutrition values from a USDA food object."""
-    raw = {}
-    for item in food.get("foodNutrients", []):
-        name  = (item.get("nutrientName") or item.get("name") or "").strip()
-        value = item.get("value") or item.get("amount") or 0
-        if name:
-            raw[name.lower()] = float(value)
-
-    result = {"food": food.get("description", "Unknown")}
-    for key, candidates in NUTRIENT_MAP.items():
-        val = 0.0
-        for candidate in candidates:
-            val = raw.get(candidate.lower(), 0.0)
-            if val:
-                break
-        result[key] = round(val, 2)
-
-    result["data_reliable"] = any([
-        result["sugar_g"], result["carbs_g"],
-        result["fat_g"],   result["energy_kcal"]
-    ])
-    return result
-
-
-# ── PORTION-AWARE FOOD RISK SCORING ───────────────────────────────────────────
-
-def food_risk_score(nutrition: dict, portion_g: float = 100.0) -> dict:
-    """
-    Score caries risk using portion-scaled nutrition values.
-    nutrition should already be scaled to portion_g before calling,
-    OR we scale internally if portion_g != 100.
-
-    Returns rich dict with:
-    - food_risk_score (0-10)
-    - food_risk_level (Low/Medium/High)
-    - exposure_score  (harmful factors)
-    - protective_score (calcium, phosphorus, fiber)
-    - net_oral_risk_index (exposure - protective, 0-10)
-    - net_oral_risk_label
-    - reasons, warning, consumption_advice
-    - frequency_risk (single vs frequent)
-    - dentist_notes (dynamic, always populated)
-    - action_plan (personalised)
-    """
-    sugar      = nutrition.get("sugar_g",      0) or 0
-    carbs      = nutrition.get("carbs_g",      0) or 0
-    fat        = nutrition.get("fat_g",        0) or 0
-    calcium    = nutrition.get("calcium_mg",   0) or 0
-    phosphorus = nutrition.get("phosphorus_mg",0) or 0
-    fiber      = nutrition.get("fiber_g",      0) or 0
-    kcal       = nutrition.get("energy_kcal",  0) or 0
-    food_name  = nutrition.get("food", "").lower()
-
-    reasons = []
-    warning = None
-
-    # ── EXPOSURE SCORING (0-10) ───────────────────────────────────────────────
-    exposure = 0.0
-
-    # Sugar contribution (0-4 pts)
-    if sugar >= 30:
-        exposure += 4.0; reasons.append(f"Very high sugar content ({sugar}g per serving)")
-        warning = "High sugar — strong cariogenic potential"
-    elif sugar >= 20:
-        exposure += 3.0; reasons.append(f"High sugar content ({sugar}g per serving)")
-    elif sugar >= 12:
-        exposure += 2.0; reasons.append(f"Moderate-high sugar ({sugar}g per serving)")
-    elif sugar >= 6:
-        exposure += 1.0; reasons.append(f"Moderate sugar ({sugar}g per serving)")
-    elif sugar >= 2:
-        exposure += 0.5
-
-    # Fermentable carbs (0-3 pts)
-    if carbs >= 60:
-        exposure += 3.0; reasons.append(f"Very high fermentable carbohydrates ({carbs}g)")
-    elif carbs >= 35:
-        exposure += 2.0; reasons.append(f"High fermentable carbohydrates ({carbs}g)")
-    elif carbs >= 18:
-        exposure += 1.0; reasons.append(f"Moderate carbohydrates ({carbs}g)")
-    elif carbs >= 8:
-        exposure += 0.5
-
-    # Sticky/starchy texture proxy (0-2 pts)
-    sticky_keywords = ["pasta","bread","cracker","chip","cookie","cake",
-                       "pizza","cereal","rice","noodle","pastry","donut","pretzel"]
-    is_sticky = carbs >= 15 and fat >= 5
-    is_known_sticky = any(k in food_name for k in sticky_keywords)
-    if is_known_sticky or is_sticky:
-        exposure += 1.5; reasons.append("Starchy or sticky texture — adheres to teeth longer")
-    elif carbs >= 10 and fat >= 3:
-        exposure += 0.5
-
-    # Portion size effect — large portions increase acid exposure time
-    if portion_g >= 350:
-        exposure += 1.0; reasons.append(f"Large portion ({portion_g}g) increases total acid exposure")
-    elif portion_g >= 250:
-        exposure += 0.5
-
-    # ── PROTECTIVE SCORING (0-4 pts) ─────────────────────────────────────────
-    protective = 0.0
-    protective_reasons = []
-
-    if calcium >= 200:
-        protective += 2.0; protective_reasons.append(f"High calcium ({calcium}mg) — remineralises enamel")
-    elif calcium >= 100:
-        protective += 1.0; protective_reasons.append(f"Good calcium content ({calcium}mg)")
-    elif calcium >= 50:
-        protective += 0.5
-
-    if phosphorus >= 200:
-        protective += 1.5; protective_reasons.append(f"High phosphorus ({phosphorus}mg) — strengthens enamel")
-    elif phosphorus >= 100:
-        protective += 0.75; protective_reasons.append(f"Good phosphorus ({phosphorus}mg)")
-
-    if fiber >= 5:
-        protective += 0.5; protective_reasons.append(f"Dietary fiber ({fiber}g) — slows sugar absorption")
-
-    reasons.extend(protective_reasons)
-
-    # ── NET ORAL RISK INDEX ───────────────────────────────────────────────────
-    exposure_capped  = min(round(exposure,  2), 10.0)
-    protective_capped = min(round(protective, 2), 4.0)
-    net_raw = max(exposure_capped - protective_capped, 0)
-    net_oral_risk = min(round(net_raw, 1), 10.0)
-
-    if net_oral_risk <= 1.5:
-        net_label = "Low"
-    elif net_oral_risk <= 4.0:
-        net_label = "Moderate"
-    elif net_oral_risk <= 6.5:
-        net_label = "High"
-    else:
-        net_label = "Very High"
-
-    # Final food risk classification (based on exposure for headline badge)
-    food_score = min(round(exposure_capped, 1), 10.0)
-    if food_score <= 1.5:
-        risk_level = "Low"
-    elif food_score <= 4.5:
-        risk_level = "Medium"
-    else:
-        risk_level = "High"
-
-    # ── FREQUENCY RISK ────────────────────────────────────────────────────────
-    def freq_risk_label(base_score):
-        # Repeated exposure multiplies acid attack cycles
-        freq_score = min(base_score * 1.6, 10.0)
-        if freq_score <= 2:   return "Low"
-        elif freq_score <= 5: return "Moderate"
-        elif freq_score <= 7: return "High"
-        else:                 return "Very High"
-
-    frequency_risk = {
-        "occasional_risk": risk_level,
-        "frequent_risk":   freq_risk_label(food_score),
-        "explanation": (
-            "Each eating occasion creates a 20-minute acid attack on enamel. "
-            "Frequent consumption multiplies this exposure significantly."
-        )
-    }
-
-    # ── DYNAMIC DENTIST NOTES ─────────────────────────────────────────────────
-    dentist_notes = _generate_dentist_notes(nutrition, food_name, portion_g, risk_level)
-
-    # ── PERSONALISED ACTION PLAN ──────────────────────────────────────────────
-    action_plan = _generate_action_plan(risk_level, nutrition, food_name, portion_g)
-
-    # ── CONSUMPTION ADVICE ────────────────────────────────────────────────────
-    advice_map = {
-        "High":   "Limit to occasional consumption. Avoid before sleep. Rinse mouth immediately after.",
-        "Medium": "Consume in moderation. Avoid as a frequent snack. Rinse after eating.",
-        "Low":    "Generally safe. Maintain normal brushing and hydration habits.",
-    }
-
-    if not reasons:
-        reasons.append("Nutritional profile shows minimal cariogenic factors")
-
-    return {
-        "food_risk_score":      food_score,
-        "food_risk_level":      risk_level,
-        "exposure_score":       exposure_capped,
-        "protective_score":     protective_capped,
-        "net_oral_risk_index":  net_oral_risk,
-        "net_oral_risk_label":  net_label,
-        "portion_g":            portion_g,
-        "reasons":              reasons,
-        "warning":              warning,
-        "consumption_advice":   advice_map[risk_level],
-        "frequency_risk":       frequency_risk,
-        "dentist_notes":        dentist_notes,
-        "action_plan":          action_plan,
-    }
-
-
-def _generate_dentist_notes(nutrition: dict, food_name: str,
-                             portion_g: float, risk_level: str) -> list[str]:
-    """
-    Always generates at least 2-3 dentist notes.
-    Dynamic, based on actual nutrient values.
-    """
-    notes = []
-    sugar  = nutrition.get("sugar_g",      0) or 0
-    carbs  = nutrition.get("carbs_g",      0) or 0
-    fat    = nutrition.get("fat_g",        0) or 0
-    calc   = nutrition.get("calcium_mg",   0) or 0
-    phos   = nutrition.get("phosphorus_mg",0) or 0
-    fiber  = nutrition.get("fiber_g",      0) or 0
-    kcal   = nutrition.get("energy_kcal",  0) or 0
-
-    # Sugar note
-    if sugar >= 20:
-        notes.append(
-            f"This food contains {sugar}g of sugar per serving. Oral bacteria (Streptococcus mutans) "
-            f"metabolise sugars rapidly, producing lactic acid that demineralises enamel within minutes."
-        )
-    elif sugar >= 8:
-        notes.append(
-            f"Moderate sugar content ({sugar}g). While not extreme, regular consumption gives bacteria "
-            f"frequent fuel for acid production. Timing and frequency matter more than single intake."
-        )
-    else:
-        notes.append(
-            f"Low sugar content ({sugar}g per serving) — a positive indicator for oral health. "
-            f"Bacteria have less fuel for acid production."
-        )
-
-    # Carbs / fermentable starch note
-    starchy_names = ["pasta","bread","rice","cracker","chip","cereal","noodle","pastry","pretzel","pizza"]
-    is_starchy = any(k in food_name for k in starchy_names)
-    if carbs >= 30 and is_starchy:
-        notes.append(
-            f"Although this food may not taste sweet, refined starch ({carbs}g) is broken down by "
-            f"salivary amylase into fermentable sugars within seconds of eating. This makes starchy "
-            f"foods just as cariogenic as sweet ones when consumed frequently."
-        )
-    elif carbs >= 20:
-        notes.append(
-            f"Fermentable carbohydrates ({carbs}g) are present. These are converted to sugars by "
-            f"salivary enzymes and contribute to oral acid production."
-        )
-
-    # Sticky texture note
-    if fat >= 8 and carbs >= 15:
-        notes.append(
-            "The combination of fat and carbohydrates in this food suggests a sticky or soft texture. "
-            "Sticky foods adhere to tooth surfaces and fissures, prolonging acid contact beyond the "
-            "typical 20-minute clearance window."
-        )
-
-    # Protective mineral note
-    if calc >= 100:
-        notes.append(
-            f"Calcium ({calc}mg per serving) is a key component of hydroxyapatite — the mineral that "
-            f"makes up tooth enamel. Adequate calcium intake supports remineralisation of early lesions."
-        )
-    if phos >= 100:
-        notes.append(
-            f"Phosphorus ({phos}mg) works synergistically with calcium to strengthen enamel. "
-            f"This food contributes positively to your enamel mineral balance."
-        )
-
-    # Fiber note
-    if fiber >= 3:
-        notes.append(
-            f"Dietary fibre ({fiber}g) helps slow the absorption of sugars and stimulates saliva "
-            f"production. Saliva is your mouth's natural defence — it buffers acid and delivers "
-            f"protective minerals to tooth surfaces."
-        )
-
-    # Portion-specific note
-    if portion_g >= 300:
-        notes.append(
-            f"The estimated portion size ({portion_g}g) is relatively large. Larger portions "
-            f"extend the duration of sugar and acid exposure in the mouth."
-        )
-
-    # Calorie density
-    if kcal >= 400:
-        notes.append(
-            f"This is a calorie-dense food ({kcal} kcal/serving). Calorie-dense foods often carry "
-            f"higher sugar or refined carb loads. Consider portion control to limit cariogenic exposure."
-        )
-
-    # Generic low-risk note if nothing concerning found
-    if risk_level == "Low" and len(notes) < 2:
-        notes.append(
-            "This food appears lower in cariogenic factors based on its sugar, carbohydrate, and "
-            "mineral profile. Consider it within your overall diet pattern and dental advice."
-        )
-
-    return notes[:6]  # cap at 6 notes for readability
-
-
-def _generate_action_plan(risk_level: str, nutrition: dict,
-                           food_name: str, portion_g: float) -> list[dict]:
-    """
-    Returns list of { category, action } dicts for personalised recommendations.
-    """
-    sugar = nutrition.get("sugar_g", 0) or 0
-    carbs = nutrition.get("carbs_g", 0) or 0
-    fat   = nutrition.get("fat_g",   0) or 0
-    fiber = nutrition.get("fiber_g", 0) or 0
-
-    actions = []
-
-    # Immediate oral hygiene
-    if risk_level == "High":
-        actions.append({"category": "Immediate", "action": "💧 Rinse mouth with water immediately after eating"})
-        actions.append({"category": "Immediate", "action": "⏱️ Wait 30 minutes then brush with fluoride toothpaste"})
-        actions.append({"category": "Immediate", "action": "🌙 Never consume this food right before sleep without brushing"})
-    elif risk_level == "Medium":
-        actions.append({"category": "Immediate", "action": "💧 Rinse mouth with water after consuming"})
-        actions.append({"category": "Immediate", "action": "🪥 Brush teeth within 60 minutes"})
-    else:
-        actions.append({"category": "Immediate", "action": "✅ Normal routine — brush twice daily with fluoride toothpaste"})
-
-    # Sticky food specific
-    is_sticky = (fat >= 8 and carbs >= 15) or any(k in food_name for k in ["caramel","toffee","gummy","dried fruit"])
-    if is_sticky:
-        actions.append({"category": "Immediate", "action": "🧵 Floss after eating — sticky foods lodge in tooth fissures"})
-
-    # Frequency guidance
-    if risk_level == "High":
-        actions.append({"category": "Frequency",  "action": "📉 Limit to 1–2 times per week maximum"})
-        actions.append({"category": "Frequency",  "action": "⏰ Eat as part of a main meal — not as a standalone snack"})
-    elif risk_level == "Medium":
-        actions.append({"category": "Frequency",  "action": "📅 Avoid daily consumption — treat as occasional food"})
-        actions.append({"category": "Frequency",  "action": "⏰ Avoid snacking on this between meals"})
-    else:
-        actions.append({"category": "Frequency",  "action": "Lower-risk option in this analysis; monitor your overall diet pattern"})
-
-    # Pairing recommendations
-    actions.append({"category": "Pairing", "action": "🥛 Pair with dairy or calcium-rich food to help neutralise oral acid"})
-    if sugar >= 15:
-        actions.append({"category": "Pairing", "action": "🧀 Follow with a small piece of cheese — raises mouth pH naturally"})
-
-    # Portion advice
-    if portion_g >= 300:
-        actions.append({"category": "Portion", "action": f"📏 Consider reducing portion — current estimate {portion_g}g is large"})
-
-    # Water advice
-    actions.append({"category": "Hydration", "action": "💧 Drink water with meals to promote saliva and rinse teeth"})
-
-    # Dental care
-    actions.append({"category": "Dental Care", "action": "🦷 Schedule check-ups every 6 months for early caries detection"})
-
-    return actions
-
-
-# ── PATIENT RISK ───────────────────────────────────────────────────────────────
-
-def build_patient_features(raw: dict):
-    age    = raw["RIDAGEYR"]
-    smq040 = raw["SMQ040"]
-    smd030 = raw["SMD030"]
-    sugar  = raw["DR1TSUGR"]
-    carbs  = raw["DR1TCARB"]
-    ff     = raw["DBD900"]
-
-    smoker_flag    = 1 if smq040 == 1 else 0
-    smoker_years   = max(age - smd030, 0) if smq040 in (1, 2) and smd030 > 0 else 0
-    sugar_per_year = sugar / (age + 1)
-    age_group      = 0 if age <= 18 else (1 if age <= 35 else (2 if age <= 50 else 3))
-    diet_risk_score = sugar * 0.4 + carbs * 0.3 + ff * 0.3
-
-    full_input = {
-        **{k: raw[k] for k in [
-            "RIDAGEYR","RIAGENDR","DR1TSUGR","DR1TCARB","DR1TTFAT",
-            "DR1TKCAL","DR1TCALC","DR1TPHOS","DR1TSFAT",
-            "SMD650","SMQ040","DBD895","DBD900","DBD905","DBD910"
-        ]},
-        "smoker_flag":     smoker_flag,
-        "smoker_years":    smoker_years,
-        "sugar_per_year":  sugar_per_year,
-        "age_group":       age_group,
-        "diet_risk_score": diet_risk_score,
-    }
-    engineered = {
-        "smoker_flag":     smoker_flag,
-        "smoker_years":    round(float(smoker_years), 2),
-        "sugar_per_year":  round(float(sugar_per_year), 3),
-        "age_group":       age_group,
-        "diet_risk_score": round(float(diet_risk_score), 2),
-    }
-    return full_input, engineered
-
-
-def predict_patient_risk(raw: dict) -> dict:
-    full_input, engineered = build_patient_features(raw)
-    input_array = np.array([full_input[f] for f in features]).reshape(1, -1)
-    prediction  = model.predict(input_array)[0]
-    probability = model.predict_proba(input_array)[0][1]
-
-    # Age-bias soft correction
-    age  = raw["RIDAGEYR"]
-    sugar = raw["DR1TSUGR"]
-    smq040 = raw["SMQ040"]
-    diet_signals = (sugar > 80) or (raw["DBD900"] > 4) or (smq040 == 1)
-    if age < 30 and diet_signals:
-        probability = min(probability + 0.08, 0.99)
-    if age > 55 and not diet_signals and sugar < 50:
-        probability = max(probability - 0.07, 0.01)
-
-    result_label = "High Risk" if probability >= 0.5 else "Low Risk"
-    return {
-        "prediction":          result_label,
-        "risk_probability":    round(float(probability), 3),
-        "engineered_features": engineered,
-    }
-
-
-def generate_explanations(data: dict) -> dict:
-    reasons = []
-    risk_breakdown = {"Sugar": 0.0, "Carbs": 0.0, "Smoking": 0.0, "Calcium": 0.0, "Fast Food": 0.0}
-
-    if data["DR1TSUGR"] > 120:
-        reasons.append("Extremely high daily sugar intake"); risk_breakdown["Sugar"] = 1.0
-    elif data["DR1TSUGR"] > 80:
-        reasons.append("High daily sugar intake"); risk_breakdown["Sugar"] = 0.8
-    elif data["DR1TSUGR"] > 50:
-        reasons.append("Moderately elevated sugar intake"); risk_breakdown["Sugar"] = 0.5
-
-    if data["DR1TCARB"] > 300:
-        reasons.append("High carbohydrate consumption"); risk_breakdown["Carbs"] = 0.8
-    elif data["DR1TCARB"] > 200:
-        risk_breakdown["Carbs"] = 0.5
-
-    if data["SMQ040"] == 1:
-        reasons.append("Daily smoking increases caries risk"); risk_breakdown["Smoking"] = 0.8
-    elif data["SMQ040"] == 2:
-        reasons.append("Occasional smoking may increase caries risk"); risk_breakdown["Smoking"] = 0.4
-
-    if data["DR1TCALC"] < 400:
-        reasons.append("Very low calcium — weakened enamel risk"); risk_breakdown["Calcium"] = 0.8
-    elif data["DR1TCALC"] < 600:
-        reasons.append("Low calcium intake"); risk_breakdown["Calcium"] = 0.5
-    else:
-        risk_breakdown["Calcium"] = 0.2
-
-    if data["DBD900"] > 5:
-        reasons.append("Very frequent fast food consumption"); risk_breakdown["Fast Food"] = 0.8
-    elif data["DBD900"] > 3:
-        reasons.append("Frequent fast food consumption"); risk_breakdown["Fast Food"] = 0.5
-
-    if not reasons:
-        reasons.append("No major risk factors detected in current inputs")
-
-    return {"why": reasons, "risk_breakdown": risk_breakdown}
-
-
-def combined_recommendation(patient_pred: str, food_level: str) -> str:
-    combos = {
-        ("High Risk","High"):   "High baseline risk and high-risk food. Strongly limit this food and maintain strict oral hygiene.",
-        ("High Risk","Medium"): "High baseline risk. This food adds moderate caries load — watch portion size and timing.",
-        ("High Risk","Low"):    "High baseline risk, but this food is relatively safer. Focus on overall diet patterns.",
-        ("Low Risk", "High"):   "Good baseline health, but this food is highly cariogenic. Limit frequency and rinse after eating.",
-        ("Low Risk", "Medium"): "Baseline risk is low. Moderate-risk food — consume in moderation.",
-        ("Low Risk", "Low"):    "Both baseline and food risk appear low. Maintain current habits and regular check-ups.",
-    }
-    return combos.get((patient_pred, food_level), "Maintain good oral hygiene and regular dental check-ups.")
+app.middleware("http")(add_security_headers)
+app.middleware("http")(log_requests)
+app.add_middleware(SlowAPIMiddleware)
 
 
 # ── ENDPOINTS ──────────────────────────────────────────────────────────────────
@@ -855,17 +71,19 @@ def combined_recommendation(patient_pred: str, food_level: str) -> str:
 def home():
     return {"message": "NutriDent AI API is running"}
 
+
 @app.get("/health")
 def health():
     return {
         "status": "ok",
         "services": {
             "model_loaded": model is not None and features is not None,
-            "usda_configured": bool(USDA_API_KEY),
+            "usda_configured": bool(os.getenv("USDA_API_KEY")),
             "google_vision_configured": bool(os.getenv("GOOGLE_API_KEY")),
             "open_food_facts": "available",
         },
     }
+
 
 @app.get("/model-info")
 def model_info():
@@ -892,11 +110,12 @@ def predict(data: PatientInput):
     except HTTPException:
         raise
     except Exception as e:
-        raise _internal_error("Patient risk prediction", e) from e
+        raise internal_error("Patient risk prediction", e) from e
 
 
 @app.post("/food-risk")
-def get_food_risk(data: FoodInput):
+@limiter.limit(RATE_LIMIT_EXTERNAL)
+def get_food_risk(request: Request, data: FoodInput):
     try:
         food = search_food(data.food_name)
         if not food:
@@ -928,11 +147,12 @@ def get_food_risk(data: FoodInput):
     except requests.RequestException as e:
         raise HTTPException(status_code=502, detail=f"USDA lookup failed: {e}") from e
     except Exception as e:
-        raise _internal_error("Food risk lookup", e) from e
+        raise internal_error("Food risk lookup", e) from e
 
 
 @app.post("/combined-risk")
-def get_combined_risk(data: CombinedInput):
+@limiter.limit(RATE_LIMIT_EXTERNAL)
+def get_combined_risk(request: Request, data: CombinedInput):
     try:
         raw = data.model_dump()
 
@@ -984,11 +204,12 @@ def get_combined_risk(data: CombinedInput):
     except requests.RequestException as e:
         raise HTTPException(status_code=502, detail=f"USDA lookup failed: {e}") from e
     except Exception as e:
-        raise _internal_error("Combined risk lookup", e) from e
+        raise internal_error("Combined risk lookup", e) from e
 
 
 @app.post("/image-food-risk")
-async def image_food_risk(file: UploadFile = File(...)):
+@limiter.limit(RATE_LIMIT_EXTERNAL)
+async def image_food_risk(request: Request, file: UploadFile = File(...)):
     try:
         contents  = await read_validated_image(file)
         image_analysis = analyze_food_image(contents, file.filename)
@@ -1025,148 +246,12 @@ async def image_food_risk(file: UploadFile = File(...)):
     except requests.RequestException as e:
         raise HTTPException(status_code=502, detail=f"Food image analysis failed: {e}") from e
     except Exception as e:
-        raise _internal_error("Image food analysis", e) from e
+        raise internal_error("Image food analysis", e) from e
 
-
-# ── OPEN FOOD FACTS — BARCODE LOOKUP ──────────────────────────────────────────
-# Open Food Facts is free, no API key required.
-# Docs: https://world.openfoodfacts.org/data
-
-OFF_URL = "https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
-
-def fetch_off_product(barcode: str) -> dict | None:
-    """
-    Fetch a product from Open Food Facts by barcode.
-    Returns the raw product dict or None if not found.
-    """
-    url = OFF_URL.format(barcode=barcode.strip())
-    resp = requests.get(url, timeout=15,
-                        headers={"User-Agent": "NutriDentAI/1.0"})
-    resp.raise_for_status()
-    data = resp.json()
-    if data.get("status") != 1:
-        return None
-    return data.get("product", None)
-
-
-def extract_off_nutrition(product: dict, portion_g: float) -> dict:
-    """
-    Extract nutrition from Open Food Facts nutriments block.
-    OFF gives values per 100g. We scale to portion_g just like USDA.
-    Returns the same dict shape as scale_nutrition() so the rest of the
-    pipeline (food_risk_score, dentist notes, action plan) works unchanged.
-    """
-    nm = product.get("nutriments", {})
-    factor = portion_g / 100.0
-
-    def get(key, fallback=0.0):
-        # OFF stores both _100g and _serving; prefer _100g for consistency
-        return float(nm.get(f"{key}_100g") or nm.get(key) or fallback)
-
-    per_100g = {
-        "energy_kcal":   get("energy-kcal"),
-        "sugar_g":       get("sugars"),
-        "carbs_g":       get("carbohydrates"),
-        "fat_g":         get("fat"),
-        "protein_g":     get("proteins"),
-        "fiber_g":       get("fiber"),
-        "sodium_mg":     round(get("sodium") * 1000, 2),  # OFF gives sodium in g
-        "calcium_mg":    round(get("calcium") * 1000, 2) if nm.get("calcium_100g") else 0.0,
-        "phosphorus_mg": 0.0,   # OFF rarely has phosphorus; leave 0
-    }
-
-    product_name = (
-        product.get("product_name_en")
-        or product.get("product_name")
-        or product.get("abbreviated_product_name")
-        or "Unknown product"
-    )
-
-    scaled = {k: round(v * factor, 2) for k, v in per_100g.items()}
-    scaled["food"]          = product_name
-    scaled["data_reliable"] = any([per_100g["energy_kcal"], per_100g["sugar_g"],
-                                    per_100g["carbs_g"],     per_100g["fat_g"]])
-    scaled["per_100g"]      = per_100g
-    scaled["portion_g"]     = round(portion_g, 1)
-    return scaled
-
-
-def get_off_serving_g(product: dict) -> float:
-    """
-    Extract declared serving size in grams from the OFF product.
-    Falls back to 100g if not parseable.
-    """
-    raw = product.get("serving_size", "") or ""
-    import re
-    # Match patterns like "30g", "30 g", "1 serving (30g)"
-    m = re.search(r"(\d+(?:\.\d+)?)\s*g", raw, re.IGNORECASE)
-    if m:
-        return float(m.group(1))
-    # Try ml — treat 1ml ≈ 1g for beverages
-    m2 = re.search(r"(\d+(?:\.\d+)?)\s*ml", raw, re.IGNORECASE)
-    if m2:
-        return float(m2.group(1))
-    return 100.0  # safe fallback
-
-
-def build_label_red_flags(product: dict, nutrition: dict) -> list[str]:
-    """
-    Check for packaged-food-specific oral-health red flags.
-    Returns a list of plain-English warning strings.
-    """
-    flags = []
-    name        = (product.get("product_name", "") or "").lower()
-    categories  = (product.get("categories", "")   or "").lower()
-    ingredients = (product.get("ingredients_text", "") or "").lower()
-    sugar_100   = nutrition.get("per_100g", {}).get("sugar_g", 0) or 0
-    carbs_100   = nutrition.get("per_100g", {}).get("carbs_g", 0) or 0
-    kcal_100    = nutrition.get("per_100g", {}).get("energy_kcal", 0) or 0
-
-    # Acidic beverage
-    acidic_markers = ["citric acid", "phosphoric acid", "acetic acid",
-                      "tartaric acid", "malic acid", "carbona"]
-    if any(m in ingredients for m in acidic_markers):
-        flags.append("⚗️ Contains acidic ingredients — may erode enamel directly, independent of sugar content")
-
-    # Sticky candies
-    sticky_markers = ["glucose syrup", "corn syrup", "caramel", "toffee",
-                      "gummy", "jelly", "gelatine", "gelatin", "starch syrup"]
-    if any(m in ingredients for m in sticky_markers):
-        flags.append("🍬 Contains sticky/syrup ingredients — adheres to teeth, prolonging acid exposure")
-
-    # Hidden sugars (multiple sugar aliases)
-    hidden_sugar_markers = [
-        "dextrose", "fructose", "maltose", "lactose", "sucrose",
-        "maltodextrin", "invert sugar", "honey", "agave", "molasses",
-        "glucose-fructose", "high fructose"
-    ]
-    hidden = [m for m in hidden_sugar_markers if m in ingredients]
-    if len(hidden) >= 2:
-        flags.append(f"🔍 Hidden sugars detected in ingredients: {', '.join(hidden[:3])}")
-
-    # Processed refined carbs
-    refined_markers = ["white flour", "refined flour", "enriched flour",
-                       "modified starch", "wheat starch", "corn starch",
-                       "potato starch", "rice flour"]
-    if any(m in ingredients for m in refined_markers):
-        flags.append("🌾 Contains refined starch — broken down rapidly to fermentable sugars by salivary enzymes")
-
-    # Very high sugar density
-    if sugar_100 >= 50:
-        flags.append(f"⚠️ Very high sugar density: {sugar_100}g per 100g — bacteria have abundant fuel")
-
-    # Energy drink / sports drink category
-    energy_cats = ["energy drink", "sports drink", "carbonated drink", "soft drink", "soda"]
-    if any(c in categories for c in energy_cats):
-        flags.append("🥤 Carbonated or energy drink — combination of acid and sugar is particularly harmful to enamel")
-
-    return flags
-
-
-# ── BARCODE ENDPOINT ───────────────────────────────────────────────────────────
 
 @app.post("/barcode-food-risk")
-def barcode_food_risk(data: BarcodeInput):
+@limiter.limit(RATE_LIMIT_EXTERNAL)
+def barcode_food_risk(request: Request, data: BarcodeInput):
     """
     Look up a packaged food by barcode (EAN-13 / UPC) using Open Food Facts.
     Runs through the same food_risk_score engine as photo and text search.
@@ -1238,234 +323,4 @@ def barcode_food_risk(data: BarcodeInput):
     except requests.RequestException as e:
         raise HTTPException(status_code=502, detail=f"Open Food Facts lookup failed: {e}") from e
     except Exception as e:
-        raise _internal_error("Barcode food lookup", e) from e
-
-
-def detect_food_from_image(image_bytes: bytes) -> str | None:
-    return analyze_food_image(image_bytes).get("food_name")
-
-
-def analyze_food_image(image_bytes: bytes, filename: str | None = None) -> dict:
-    vision_result = _vision_result_from_image(image_bytes)
-    food_name = _best_food_detection(vision_result)
-    if not food_name:
-        return {"food_name": None}
-
-    terms = _vision_terms(vision_result, filename)
-    ingredients = _visible_ingredients_from_terms(terms, food_name)
-    portion_info = estimate_image_portion(food_name, ingredients, terms)
-
-    return {
-        "food_name": food_name,
-        "detected_ingredients": ingredients,
-        "visible_amount": portion_info,
-        "observation_note": _image_observation_note(food_name, ingredients, portion_info),
-        "source": "Google Vision labels plus NutriDent image heuristics",
-    }
-
-
-def _vision_result_from_image(image_bytes: bytes) -> dict:
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=503, detail="GOOGLE_API_KEY is not configured")
-
-    url  = f"https://vision.googleapis.com/v1/images:annotate?key={api_key}"
-    body = {
-        "requests": [{
-            "image":    {"content": base64.b64encode(image_bytes).decode()},
-            "features": [
-                {"type": "LABEL_DETECTION", "maxResults": 15},
-                {"type": "WEB_DETECTION", "maxResults": 10},
-                {"type": "OBJECT_LOCALIZATION", "maxResults": 10},
-            ],
-        }]
-    }
-    response = requests.post(url, json=body, timeout=30)
-    response.raise_for_status()
-    result   = response.json()
-
-    if "error" in result:
-        raise HTTPException(status_code=502, detail=f"Vision API error: {_google_error_message(result['error'])}")
-
-    responses = result.get("responses", [])
-    if not responses:
-        raise HTTPException(status_code=502, detail="Vision API returned an empty response")
-
-    vision_result = responses[0]
-    if "error" in vision_result:
-        raise HTTPException(status_code=502, detail=f"Vision API error: {_google_error_message(vision_result['error'])}")
-
-    food_name = _best_food_detection(vision_result)
-    if not food_name:
-        return {}
-    return vision_result
-
-
-def _google_error_message(error: dict | str) -> str:
-    if isinstance(error, str):
-        return error
-    message = error.get("message") or "Unknown Google Vision API error"
-    status = error.get("status")
-    code = error.get("code")
-    prefix = f"{status}: " if status else ""
-    suffix = f" (code {code})" if code else ""
-    return f"{prefix}{message}{suffix}"
-
-
-def _vision_terms(vision_result: dict, filename: str | None = None) -> list[str]:
-    terms: list[str] = []
-    for label in vision_result.get("labelAnnotations", []):
-        terms.append(label.get("description", ""))
-    for obj in vision_result.get("localizedObjectAnnotations", []):
-        terms.append(obj.get("name", ""))
-    web_detection = vision_result.get("webDetection", {}) or {}
-    for entity in web_detection.get("webEntities", []):
-        terms.append(entity.get("description", ""))
-    if filename:
-        terms.extend(filename.replace("_", "-").replace(".", "-").split("-"))
-    return [term.lower().strip() for term in terms if term and term.strip()]
-
-
-def _visible_ingredients_from_terms(terms: list[str], food_name: str) -> list[dict]:
-    joined = " ".join([food_name.lower(), *terms])
-    ingredient_map = {
-        "tomato": ["tomato", "tomatoes", "tomato sauce"],
-        "salami/pepperoni": ["salami", "pepperoni", "sausage"],
-        "olives": ["olive", "olives"],
-        "bell pepper": ["bell pepper", "pepper", "capsicum"],
-        "cheese": ["cheese", "mozzarella"],
-        "basil/herbs": ["basil", "herb", "herbs"],
-        "pizza crust": ["crust", "bread", "dough"],
-        "mushroom": ["mushroom"],
-        "ham": ["ham"],
-        "onion": ["onion"],
-    }
-    ingredients = []
-    for label, markers in ingredient_map.items():
-        if any(marker in joined for marker in markers):
-            confidence = "High" if label in {"cheese", "pizza crust"} and "pizza" in food_name.lower() else "Moderate"
-            ingredients.append({"name": label, "confidence": confidence})
-    return ingredients
-
-
-def estimate_image_portion(food_name: str, ingredients: list[dict] | None = None,
-                           terms: list[str] | None = None) -> dict:
-    name = food_name.lower()
-    joined_terms = " ".join(terms or [])
-    ingredient_count = len(ingredients or [])
-
-    if "pizza" in name:
-        if "slice" in joined_terms and "whole" not in joined_terms:
-            return {
-                "g": 125,
-                "label": "1 visible pizza slice (~125g)",
-                "confidence": "Moderate",
-                "basis": "Photo terms suggest a slice rather than a whole pizza.",
-                "options": [
-                    {"label": "1 slice", "g": 125},
-                    {"label": "2 slices", "g": 250},
-                    {"label": "3 slices", "g": 375},
-                ],
-            }
-        if ingredient_count >= 3 or "whole" in joined_terms or "pizza-pizza" in joined_terms:
-            return {
-                "g": 760,
-                "label": "Whole topped pizza visible (~760g)",
-                "confidence": "Moderate",
-                "basis": "The photo appears to show an entire topped pizza, not a plated serving.",
-                "options": [
-                    {"label": "1 slice", "g": 95},
-                    {"label": "2 slices", "g": 190},
-                    {"label": "Half pizza", "g": 380},
-                    {"label": "Whole pizza", "g": 760},
-                ],
-            }
-        return {
-            "g": 250,
-            "label": "2 pizza slices (~250g)",
-            "confidence": "Low",
-            "basis": "Pizza was detected, but the visible amount is uncertain.",
-            "options": [
-                {"label": "1 slice", "g": 125},
-                {"label": "2 slices", "g": 250},
-                {"label": "Half pizza", "g": 500},
-            ],
-        }
-
-    base = estimate_portion(food_name)
-    return {
-        **base,
-        "basis": "Estimated from detected food category.",
-        "options": [
-            {"label": "Small", "g": round((base["g"] or 150) * 0.65)},
-            {"label": "Medium", "g": base["g"] or 150},
-            {"label": "Large", "g": round((base["g"] or 150) * 1.4)},
-        ],
-    }
-
-
-def _image_observation_note(food_name: str, ingredients: list[dict], portion_info: dict) -> str:
-    ingredient_names = [item["name"] for item in ingredients]
-    if ingredient_names:
-        return (
-            f"Detected {food_name} with visible toppings/ingredients: "
-            f"{', '.join(ingredient_names)}. {portion_info.get('basis', '')}"
-        ).strip()
-    return f"Detected {food_name}. {portion_info.get('basis', '')}".strip()
-
-
-def _best_food_detection(vision_result: dict) -> str | None:
-    candidates: list[tuple[str, float]] = []
-
-    for label in vision_result.get("labelAnnotations", []):
-        name = label.get("description", "")
-        score = float(label.get("score", 0) or 0)
-        candidates.append((name, score))
-
-    for obj in vision_result.get("localizedObjectAnnotations", []):
-        name = obj.get("name", "")
-        score = float(obj.get("score", 0) or 0)
-        candidates.append((name, score))
-
-    web_detection = vision_result.get("webDetection", {}) or {}
-    for entity in web_detection.get("webEntities", []):
-        name = entity.get("description", "")
-        score = float(entity.get("score", 0) or 0)
-        candidates.append((name, min(score, 1.0)))
-
-    if not candidates:
-        return None
-
-    skip = {
-        "food","dish","cuisine","ingredient","tableware","recipe",
-        "meal","plate","bowl","table","fork","knife","spoon",
-        "drink","beverage","snack","fast food","produce","fruit",
-        "vegetable","natural foods","whole food",
-    }
-
-    food_keywords = {
-        "apple","banana","orange","grape","pizza","burger","sandwich",
-        "bread","cake","cookie","donut","pasta","rice","noodle","salad",
-        "chicken","beef","fish","egg","cheese","yogurt","ice cream",
-        "cereal","soup","fries","potato","chocolate","candy","taco",
-        "sushi","steak","oatmeal","pancake","waffle","muffin",
-    }
-
-    cleaned: list[tuple[str, float]] = []
-    for raw_name, raw_score in candidates:
-        name = (raw_name or "").lower().strip()
-        if not name or name in skip:
-            continue
-        score = raw_score
-        if any(keyword in name for keyword in food_keywords):
-            score += 0.35
-        cleaned.append((name, score))
-
-    if not cleaned:
-        return None
-
-    cleaned.sort(key=lambda item: item[1], reverse=True)
-    best_name, best_score = cleaned[0]
-    if best_score < 0.45:
-        return None
-    return best_name
+        raise internal_error("Barcode food lookup", e) from e

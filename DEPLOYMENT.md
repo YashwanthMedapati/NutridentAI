@@ -89,6 +89,8 @@ The frontend now uses Vite instead of Create React App. Run `npm audit` from `ca
 Run:
 
 ```bash
-python -m unittest Caries.test_core
-cd caries-frontend && npm test && npm run build && npm audit
+cd Caries && python -m unittest test_core test_endpoints
+cd ../caries-frontend && npm test && npm run build && npm audit
 ```
+
+`.github/workflows/ci.yml` runs the same backend/frontend suites plus the production build automatically on every push and pull request to `main` — check that it's green before deploying.

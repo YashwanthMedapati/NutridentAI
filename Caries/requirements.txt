@@ -7,3 +7,4 @@ requests
 joblib
 numpy
 scikit-learn
+slowapi>=0.1.9

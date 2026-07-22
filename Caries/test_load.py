@@ -1,5 +1,11 @@
+import json
+import platform
+import subprocess
+from datetime import datetime, timezone
+
 import pandas as pd
 import numpy as np
+import sklearn
 import joblib
 
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
@@ -223,6 +229,7 @@ print(f"5-fold F1-weighted: {cv_kappa.mean():.4f} ± {cv_kappa.std():.4f}")
 
 
 # ── 10. FEATURE IMPORTANCE ────────────────────────────────────────────────────
+feature_importance_rows = []
 if hasattr(best_model, "feature_importances_"):
     imp_df = pd.DataFrame({
         "feature":    features,
@@ -231,12 +238,138 @@ if hasattr(best_model, "feature_importances_"):
 
     print(f"\nTop 10 features ({best_name}):")
     print(imp_df.head(10).to_string(index=False))
+    feature_importance_rows = imp_df.round(4).to_dict(orient="records")
 
 
-# ── 11. SAVE ──────────────────────────────────────────────────────────────────
+# ── 11. HELD-OUT ACCURACY — BOOTSTRAP CONFIDENCE INTERVAL ────────────────────
+# The single train/test accuracy number is a point estimate that depends on
+# which rows happened to land in the test split. Bootstrap-resampling the
+# held-out predictions gives a 95% interval around it, so "~70% accuracy"
+# can be reported as a range instead of a single unqualified figure.
+def bootstrap_accuracy_ci(y_true, y_pred, n_resamples=2000, seed=42):
+    rng = np.random.default_rng(seed)
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    n = len(y_true)
+    boot_accs = np.empty(n_resamples)
+    for i in range(n_resamples):
+        idx = rng.integers(0, n, size=n)
+        boot_accs[i] = accuracy_score(y_true[idx], y_pred[idx])
+    lower, upper = np.percentile(boot_accs, [2.5, 97.5])
+    return float(lower), float(upper), float(boot_accs.mean())
+
+
+best_preds = best_model.predict(X_test)
+ci_low, ci_high, ci_mean = bootstrap_accuracy_ci(y_test, best_preds)
+print(f"\nBootstrap 95% CI for held-out accuracy ({best_name}, n=2000 resamples): "
+      f"{ci_low:.4f} - {ci_high:.4f} (mean {ci_mean:.4f})")
+
+
+# ── 12. PERSIST AN EVALUATION REPORT ──────────────────────────────────────────
+# Numbers printed to the console disappear the moment the terminal is closed.
+# Saving them alongside the model means the README's accuracy claim can point
+# at a versioned artifact instead of an unverifiable one-line assertion.
+def _git_commit() -> str | None:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        return None
+
+
+report = {
+    "generated_at": datetime.now(timezone.utc).isoformat(),
+    "git_commit": _git_commit(),
+    "environment": {
+        "python": platform.python_version(),
+        "scikit_learn": sklearn.__version__,
+    },
+    "dataset": {
+        "source": "NHANES 2017-2018 (dental exam, dietary recall, smoking, demographics)",
+        "merged_rows": int(df.shape[0]),
+        "train_rows": int(X_train.shape[0]),
+        "test_rows": int(X_test.shape[0]),
+        "caries_count_median_threshold": float(threshold),
+        "label_distribution": {"low_risk": int(vc.get(0, 0)), "high_risk": int(vc.get(1, 0))},
+    },
+    "models_compared": {
+        name: {
+            "accuracy": round(r["accuracy"], 4),
+            "cohen_kappa": round(r["kappa"], 4),
+            "roc_auc": round(r["auc"], 4),
+        }
+        for name, r in results.items()
+    },
+    "best_model": {
+        "name": best_name,
+        "held_out_accuracy": round(results[best_name]["accuracy"], 4),
+        "held_out_accuracy_95ci": [round(ci_low, 4), round(ci_high, 4)],
+        "held_out_roc_auc": round(results[best_name]["auc"], 4),
+        "held_out_cohen_kappa": round(results[best_name]["kappa"], 4),
+        "cv_5fold_roc_auc_mean": round(float(cv_aucs.mean()), 4),
+        "cv_5fold_roc_auc_std": round(float(cv_aucs.std()), 4),
+        "cv_5fold_f1_weighted_mean": round(float(cv_kappa.mean()), 4),
+        "cv_5fold_f1_weighted_std": round(float(cv_kappa.std()), 4),
+    },
+    "top_features": feature_importance_rows[:10],
+    "notes": [
+        "Educational/research use only — not a clinical diagnostic tool.",
+        "The caries_risk label is derived from a median split of tooth-surface "
+        "counts, not a clinician-assigned diagnosis, so metrics reflect "
+        "agreement with that proxy label rather than ground-truth caries status.",
+    ],
+}
+
+with open("MODEL_EVALUATION.json", "w") as f:
+    json.dump(report, f, indent=2)
+
+with open("MODEL_EVALUATION.md", "w") as f:
+    f.write(f"# Model Evaluation Report\n\n")
+    f.write(f"Generated: {report['generated_at']}")
+    if report["git_commit"]:
+        f.write(f" (commit `{report['git_commit']}`)")
+    f.write("\n\n")
+    f.write("Regenerate this file by running `python test_load.py` with the NHANES "
+            "`.xpt` files in this directory (see README for download links).\n\n")
+    f.write("## Dataset\n\n")
+    f.write(f"- Merged rows: {report['dataset']['merged_rows']}\n")
+    f.write(f"- Train / test split: {report['dataset']['train_rows']} / "
+            f"{report['dataset']['test_rows']} (80/20, stratified)\n")
+    f.write(f"- Label distribution: {report['dataset']['label_distribution']['low_risk']} low-risk, "
+            f"{report['dataset']['label_distribution']['high_risk']} high-risk\n\n")
+    f.write("## Model comparison (held-out test set)\n\n")
+    f.write("| Model | Accuracy | Cohen's Kappa | ROC-AUC |\n")
+    f.write("|---|---|---|---|\n")
+    for name, m in report["models_compared"].items():
+        f.write(f"| {name} | {m['accuracy']:.4f} | {m['cohen_kappa']:.4f} | {m['roc_auc']:.4f} |\n")
+    f.write(f"\n## Best model: {best_name}\n\n")
+    bm = report["best_model"]
+    f.write(f"- Held-out accuracy: **{bm['held_out_accuracy']:.4f}** "
+            f"(95% bootstrap CI: {bm['held_out_accuracy_95ci'][0]:.4f} - "
+            f"{bm['held_out_accuracy_95ci'][1]:.4f})\n")
+    f.write(f"- Held-out ROC-AUC: {bm['held_out_roc_auc']:.4f}\n")
+    f.write(f"- Held-out Cohen's Kappa: {bm['held_out_cohen_kappa']:.4f}\n")
+    f.write(f"- 5-fold CV ROC-AUC: {bm['cv_5fold_roc_auc_mean']:.4f} ± {bm['cv_5fold_roc_auc_std']:.4f}\n")
+    f.write(f"- 5-fold CV F1-weighted: {bm['cv_5fold_f1_weighted_mean']:.4f} ± "
+            f"{bm['cv_5fold_f1_weighted_std']:.4f}\n\n")
+    if report["top_features"]:
+        f.write("## Top features\n\n")
+        f.write("| Feature | Importance |\n|---|---|\n")
+        for row in report["top_features"]:
+            f.write(f"| {row['feature']} | {row['importance']:.4f} |\n")
+        f.write("\n")
+    f.write("## Notes\n\n")
+    for note in report["notes"]:
+        f.write(f"- {note}\n")
+
+print("\nSaved MODEL_EVALUATION.json and MODEL_EVALUATION.md")
+
+
+# ── 13. SAVE MODEL ARTIFACTS ──────────────────────────────────────────────────
 joblib.dump(best_model, "caries_model.pkl")
 joblib.dump(features,   "feature_names.pkl")
 joblib.dump(threshold,  "caries_threshold.pkl")  # save threshold for reference
 
 print("\nSaved: caries_model.pkl, feature_names.pkl, caries_threshold.pkl")
-print("\nDone! Share your Kappa and ROC-AUC results.")
+print("\nDone! See MODEL_EVALUATION.md for the full metrics report.")

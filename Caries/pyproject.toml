@@ -1,0 +1,15 @@
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+exclude = ["test_load.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E701",  # multiple statements on one line (colon) — used intentionally in risk_engine.py
+    "E702",  # multiple statements on one line (semicolon) — same intentional compact style
+    "E501",  # line length is a soft guideline here, not a hard error
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["core"]
