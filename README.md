@@ -97,6 +97,10 @@ Backend smoke tests:
 python -m unittest Caries.test_core
 ```
 
+Model retraining:
+
+`Caries/test_load.py` expects local NHANES `.xpt` files in the `Caries` folder. Those raw datasets are intentionally ignored because they are large training artifacts, not runtime dependencies. The deployed API uses the committed model artifacts instead.
+
 Full local preflight:
 
 ```powershell
