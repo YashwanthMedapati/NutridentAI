@@ -1,0 +1,9 @@
+fastapi>=0.100
+uvicorn[standard]
+python-multipart
+pydantic>=2
+python-dotenv
+requests
+joblib
+numpy
+scikit-learn

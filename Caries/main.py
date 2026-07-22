@@ -1,57 +1,129 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional
 import joblib
 import numpy as np
 import os
 import requests
 import base64
+import logging
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
+logger = logging.getLogger("nutrident")
+
+MAX_IMAGE_BYTES = int(os.getenv("MAX_IMAGE_BYTES", str(8 * 1024 * 1024)))
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
+
+def _split_origins(value: str | None) -> list[str]:
+    if not value:
+        return ["http://localhost:3000", "http://127.0.0.1:3000"]
+    return [origin.strip() for origin in value.split(",") if origin.strip()]
 
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_split_origins(os.getenv("CORS_ORIGINS")),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=()")
+    return response
+
+def _internal_error(context: str, error: Exception) -> HTTPException:
+    logger.exception("%s failed", context, exc_info=error)
+    return HTTPException(status_code=500, detail="Unexpected server error. Please try again.")
+
+async def read_validated_image(file: UploadFile) -> bytes:
+    content_type = (file.content_type or "").split(";")[0].lower()
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=415, detail="Upload a JPEG, PNG, WEBP, HEIC, or HEIF image.")
+
+    contents = await file.read(MAX_IMAGE_BYTES + 1)
+    if len(contents) > MAX_IMAGE_BYTES:
+        max_mb = round(MAX_IMAGE_BYTES / (1024 * 1024), 1)
+        raise HTTPException(status_code=413, detail=f"Image is too large. Maximum size is {max_mb} MB.")
+    if not contents:
+        raise HTTPException(status_code=422, detail="Uploaded image is empty.")
+    return contents
+
 USDA_API_KEY = os.getenv("USDA_API_KEY")
 SEARCH_URL   = "https://api.nal.usda.gov/fdc/v1/foods/search"
 
-model    = joblib.load("caries_model.pkl")
-features = joblib.load("feature_names.pkl")
+model    = joblib.load(BASE_DIR / "caries_model.pkl")
+features = joblib.load(BASE_DIR / "feature_names.pkl")
 
 
 # ── PYDANTIC MODELS ────────────────────────────────────────────────────────────
 
-class PatientInput(BaseModel):
-    RIDAGEYR: float; RIAGENDR: float
-    DR1TSUGR: float; DR1TCARB: float; DR1TTFAT: float; DR1TKCAL: float
-    DR1TCALC: float; DR1TPHOS: float; DR1TSFAT: float
-    SMD650: float;   SMQ040: float;   SMD030: float
-    DBD895: float;   DBD900: float;   DBD905: float; DBD910: float
+class PatientFields(BaseModel):
+    RIDAGEYR: float = Field(..., ge=1, le=120)
+    RIAGENDR: float = Field(..., ge=1, le=2)
+    DR1TSUGR: float = Field(..., ge=0, le=500)
+    DR1TCARB: float = Field(..., ge=0, le=1000)
+    DR1TTFAT: float = Field(..., ge=0, le=500)
+    DR1TKCAL: float = Field(..., ge=0, le=10000)
+    DR1TCALC: float = Field(..., ge=0, le=5000)
+    DR1TPHOS: float = Field(..., ge=0, le=5000)
+    DR1TSFAT: float = Field(..., ge=0, le=300)
+    SMD650: float = Field(0, ge=0, le=100)
+    SMQ040: float = Field(..., ge=1, le=3)
+    SMD030: float = Field(0, ge=0, le=120)
+    DBD895: float = Field(..., ge=0, le=21)
+    DBD900: float = Field(..., ge=0, le=21)
+    DBD905: float = Field(..., ge=0, le=21)
+    DBD910: float = Field(..., ge=0, le=21)
+
+    @model_validator(mode="after")
+    def validate_smoking_fields(self):
+        if self.SMQ040 in (1, 2) and self.SMD030 and self.SMD030 > self.RIDAGEYR:
+            raise ValueError("Smoking start age cannot be greater than current age")
+        if self.SMQ040 == 3:
+            self.SMD650 = 0
+            self.SMD030 = 0
+        return self
+
+class PatientInput(PatientFields):
+    pass
 
 class FoodInput(BaseModel):
-    food_name: str
-    portion_g: Optional[float] = None   # user-supplied or AI-estimated portion in grams
+    food_name: str = Field(..., min_length=1, max_length=120)
+    portion_g: Optional[float] = Field(None, ge=1, le=2000)   # user-supplied or AI-estimated portion in grams
+
+    @field_validator("food_name")
+    @classmethod
+    def strip_food_name(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Food name cannot be empty")
+        return cleaned
 
 class BarcodeInput(BaseModel):
-    barcode: str                     # EAN-13, UPC-A, UPC-E etc.
-    portion_g: Optional[float] = None  # user override; falls back to serving size on label
+    barcode: str = Field(..., pattern=r"^\d{8,14}$")  # EAN-13, UPC-A, UPC-E etc.
+    portion_g: Optional[float] = Field(None, ge=1, le=2000)  # user override; falls back to serving size on label
 
-class CombinedInput(BaseModel):
-    RIDAGEYR: float; RIAGENDR: float
-    DR1TSUGR: float; DR1TCARB: float; DR1TTFAT: float; DR1TKCAL: float
-    DR1TCALC: float; DR1TPHOS: float; DR1TSFAT: float
-    SMD650: float;   SMQ040: float;   SMD030: float
-    DBD895: float;   DBD900: float;   DBD905: float; DBD910: float
-    food_name: str
-    portion_g: Optional[float] = None
+class CombinedInput(PatientFields):
+    food_name: str = Field(..., min_length=1, max_length=120)
+    portion_g: Optional[float] = Field(None, ge=1, le=2000)
+
+    @field_validator("food_name")
+    @classmethod
+    def strip_food_name(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Food name cannot be empty")
+        return cleaned
 
 
 # ── PORTION SIZE HEURISTICS ────────────────────────────────────────────────────
@@ -129,6 +201,139 @@ def scale_nutrition(nutrition_per_100g: dict, portion_g: float) -> dict:
     return scaled
 
 
+def _confidence_to_score(label: str | None) -> float:
+    value = (label or "").lower()
+    if value == "user":
+        return 1.0
+    if value == "high":
+        return 0.9
+    if value == "moderate":
+        return 0.65
+    if value == "low":
+        return 0.35
+    return 0.5
+
+
+def nutrition_quality(nutrition: dict, portion_info: dict | None = None,
+                      source: str = "USDA", image_based: bool = False) -> dict:
+    """
+    Explain how trustworthy the calorie estimate is. This is not a clinical
+    confidence score; it summarizes data completeness, portion certainty, and
+    whether the result came from a photo heuristic.
+    """
+    required = ["energy_kcal", "carbs_g", "fat_g", "protein_g"]
+    present = [key for key in required if nutrition.get("per_100g", {}).get(key) or nutrition.get(key)]
+    completeness = len(present) / len(required)
+    portion_confidence = _confidence_to_score((portion_info or {}).get("confidence"))
+    data_reliable = bool(nutrition.get("data_reliable", True))
+
+    score = completeness * 0.55 + portion_confidence * 0.35 + (0.10 if data_reliable else 0)
+    if image_based:
+        score -= 0.12
+    score = max(0.05, min(score, 1.0))
+
+    if score >= 0.78:
+        label = "High"
+    elif score >= 0.52:
+        label = "Moderate"
+    else:
+        label = "Low"
+
+    notes = []
+    if image_based:
+        notes.append("Photo results identify likely foods and visible ingredients, but cannot measure exact mass.")
+    if portion_confidence < 0.7:
+        notes.append("Portion size should be reviewed before logging.")
+    if not data_reliable or completeness < 0.75:
+        notes.append("The matched nutrition record is incomplete, so totals may be less reliable.")
+    if not notes:
+        notes.append("Calories are based on the matched nutrition record scaled to the selected portion.")
+
+    return {
+        "source": source,
+        "confidence": label,
+        "confidence_score": round(score, 2),
+        "data_completeness": round(completeness, 2),
+        "portion_confidence": (portion_info or {}).get("confidence", "Unknown"),
+        "requires_user_review": image_based or portion_confidence < 0.7 or not data_reliable,
+        "notes": notes,
+    }
+
+
+INGREDIENT_CALORIE_WEIGHTS = {
+    "cheese": 0.24,
+    "salami/pepperoni": 0.18,
+    "salami": 0.18,
+    "pepperoni": 0.18,
+    "sausage": 0.18,
+    "ham": 0.12,
+    "pizza crust": 0.35,
+    "crust": 0.35,
+    "dough": 0.35,
+    "tomato": 0.06,
+    "olives": 0.06,
+    "bell pepper": 0.05,
+    "peppers": 0.05,
+    "mushroom": 0.04,
+    "basil/herbs": 0.01,
+}
+
+
+def ingredient_calorie_breakdown(ingredients: list[dict] | None, nutrition: dict) -> list[dict]:
+    total = float(nutrition.get("energy_kcal") or 0)
+    if total <= 0 or not ingredients:
+        return []
+
+    rows = []
+    for item in ingredients:
+        name = item.get("name") if isinstance(item, dict) else str(item)
+        if not name:
+            continue
+        key = name.lower()
+        rows.append({
+            "name": name,
+            "confidence": item.get("confidence", "Estimated") if isinstance(item, dict) else "Estimated",
+            "weight": INGREDIENT_CALORIE_WEIGHTS.get(key, 0.08),
+        })
+
+    total_weight = sum(row["weight"] for row in rows) or 1
+    breakdown = []
+    running_total = 0
+    for index, row in enumerate(rows):
+        if index == len(rows) - 1:
+            calories = round(total) - running_total
+        else:
+            calories = round(total * (row["weight"] / total_weight))
+            running_total += calories
+        breakdown.append({
+            "name": row["name"],
+            "confidence": row["confidence"],
+            "calories": calories,
+            "percent": round((row["weight"] / total_weight) * 100),
+            "method": "Estimated share of matched food calories, not direct ingredient measurement",
+        })
+    return breakdown
+
+
+def attach_analysis_metadata(payload: dict, portion_info: dict, nutrition: dict,
+                             source: str, image_based: bool = False,
+                             ingredients: list[dict] | None = None) -> dict:
+    payload["analysis_quality"] = nutrition_quality(
+        nutrition,
+        portion_info=portion_info,
+        source=source,
+        image_based=image_based,
+    )
+    payload["calorie_breakdown"] = {
+        "total_kcal": nutrition.get("energy_kcal", 0),
+        "portion_g": nutrition.get("portion_g", portion_info.get("g")),
+        "per_100g_kcal": nutrition.get("per_100g", {}).get("energy_kcal", 0),
+        "ingredient_estimates": ingredient_calorie_breakdown(ingredients, nutrition),
+        "method": "Nutrition totals come from the matched food database record scaled by selected portion.",
+    }
+    return payload
+
+
 # ── USDA FILTERING ─────────────────────────────────────────────────────────────
 
 VALID_DATA_TYPES = {"Foundation", "SR Legacy", "Survey (FNDDS)", "Branded"}
@@ -150,7 +355,7 @@ def is_valid_food_item(food: dict) -> bool:
 
 def search_food(food_name: str, top_n: int = 10) -> dict | None:
     if not USDA_API_KEY:
-        raise ValueError("USDA_API_KEY not found in .env file")
+        raise HTTPException(status_code=503, detail="USDA_API_KEY is not configured")
     params = {
         "query":    food_name,
         "api_key":  USDA_API_KEY,
@@ -468,8 +673,8 @@ def _generate_dentist_notes(nutrition: dict, food_name: str,
     # Generic low-risk note if nothing concerning found
     if risk_level == "Low" and len(notes) < 2:
         notes.append(
-            "This food has a low cariogenic profile based on its sugar, carbohydrate, and mineral "
-            "content. It is suitable for regular consumption within a balanced diet."
+            "This food appears lower in cariogenic factors based on its sugar, carbohydrate, and "
+            "mineral profile. Consider it within your overall diet pattern and dental advice."
         )
 
     return notes[:6]  # cap at 6 notes for readability
@@ -511,7 +716,7 @@ def _generate_action_plan(risk_level: str, nutrition: dict,
         actions.append({"category": "Frequency",  "action": "📅 Avoid daily consumption — treat as occasional food"})
         actions.append({"category": "Frequency",  "action": "⏰ Avoid snacking on this between meals"})
     else:
-        actions.append({"category": "Frequency",  "action": "✅ Safe for regular consumption — monitor overall diet pattern"})
+        actions.append({"category": "Frequency",  "action": "Lower-risk option in this analysis; monitor your overall diet pattern"})
 
     # Pairing recommendations
     actions.append({"category": "Pairing", "action": "🥛 Pair with dairy or calcium-rich food to help neutralise oral acid"})
@@ -542,7 +747,7 @@ def build_patient_features(raw: dict):
     ff     = raw["DBD900"]
 
     smoker_flag    = 1 if smq040 == 1 else 0
-    smoker_years   = max(age - smd030, 0)
+    smoker_years   = max(age - smd030, 0) if smq040 in (1, 2) and smd030 > 0 else 0
     sugar_per_year = sugar / (age + 1)
     age_group      = 0 if age <= 18 else (1 if age <= 35 else (2 if age <= 50 else 3))
     diet_risk_score = sugar * 0.4 + carbs * 0.3 + ff * 0.3
@@ -650,6 +855,32 @@ def combined_recommendation(patient_pred: str, food_level: str) -> str:
 def home():
     return {"message": "NutriDent AI API is running"}
 
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "services": {
+            "model_loaded": model is not None and features is not None,
+            "usda_configured": bool(USDA_API_KEY),
+            "google_vision_configured": bool(os.getenv("GOOGLE_API_KEY")),
+            "open_food_facts": "available",
+        },
+    }
+
+@app.get("/model-info")
+def model_info():
+    return {
+        "model_type": type(model).__name__,
+        "feature_count": len(features),
+        "model_version": os.getenv("MODEL_VERSION", "local-dev"),
+        "training_data": "NHANES 2017-2018 dental examination, dietary recall, and lifestyle questionnaire features",
+        "limitations": [
+            "Educational and research use only",
+            "Not a clinical diagnosis",
+            "Risk estimates depend on self-reported diet and lifestyle inputs",
+        ],
+    }
+
 
 @app.post("/predict")
 def predict(data: PatientInput):
@@ -658,8 +889,10 @@ def predict(data: PatientInput):
         expl   = generate_explanations(data.model_dump())
         result.update(expl)
         return result
+    except HTTPException:
+        raise
     except Exception as e:
-        return {"error": str(e)}
+        raise _internal_error("Patient risk prediction", e) from e
 
 
 @app.post("/food-risk")
@@ -667,7 +900,7 @@ def get_food_risk(data: FoodInput):
     try:
         food = search_food(data.food_name)
         if not food:
-            return {"error": f"No food match found for: {data.food_name}"}
+            raise HTTPException(status_code=404, detail=f"No food match found for: {data.food_name}")
 
         nutrition_per_100g = extract_nutrients(food)
 
@@ -682,16 +915,20 @@ def get_food_risk(data: FoodInput):
         nutrition = scale_nutrition(nutrition_per_100g, portion_g)
         risk      = food_risk_score(nutrition, portion_g)
 
-        return {
+        return attach_analysis_metadata({
             "food_name_entered":  data.food_name,
             "usda_match":         nutrition["food"],
             "nutrition":          nutrition,
             "nutrition_per_100g": nutrition_per_100g,
             "portion_estimate":   portion_info,
             "risk":               risk,
-        }
+        }, portion_info, nutrition, source="USDA FoodData Central")
+    except HTTPException:
+        raise
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"USDA lookup failed: {e}") from e
     except Exception as e:
-        return {"error": str(e)}
+        raise _internal_error("Food risk lookup", e) from e
 
 
 @app.post("/combined-risk")
@@ -705,7 +942,7 @@ def get_combined_risk(data: CombinedInput):
 
         food = search_food(raw["food_name"])
         if not food:
-            return {"error": f"No USDA match found for: {raw['food_name']}"}
+            raise HTTPException(status_code=404, detail=f"No USDA match found for: {raw['food_name']}")
 
         nutrition_per_100g = extract_nutrients(food)
 
@@ -732,35 +969,40 @@ def get_combined_risk(data: CombinedInput):
 
         return {
             "patient_risk": patient_result,
-            "food_risk": {
+            "food_risk": attach_analysis_metadata({
                 "food_name_entered":  raw["food_name"],
                 "usda_match":         nutrition["food"],
                 "nutrition":          nutrition,
                 "nutrition_per_100g": nutrition_per_100g,
                 "portion_estimate":   portion_info,
                 "risk":               food_result,
-            },
+            }, portion_info, nutrition, source="USDA FoodData Central"),
             "final_advice": advice,
         }
+    except HTTPException:
+        raise
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"USDA lookup failed: {e}") from e
     except Exception as e:
-        return {"error": str(e)}
+        raise _internal_error("Combined risk lookup", e) from e
 
 
 @app.post("/image-food-risk")
 async def image_food_risk(file: UploadFile = File(...)):
     try:
-        contents  = await file.read()
-        food_name = detect_food_from_image(contents)
+        contents  = await read_validated_image(file)
+        image_analysis = analyze_food_image(contents, file.filename)
+        food_name = image_analysis.get("food_name")
 
         if not food_name:
-            return {"error": "Could not detect food from image"}
+            raise HTTPException(status_code=422, detail="Could not detect food from image")
 
         food = search_food(food_name)
         if not food:
-            return {"detected_food": food_name, "error": f"Detected '{food_name}' but no USDA match found."}
+            raise HTTPException(status_code=404, detail=f"Detected '{food_name}' but no USDA match found.")
 
         nutrition_per_100g = extract_nutrients(food)
-        portion_info       = estimate_portion(food_name)
+        portion_info       = image_analysis.get("visible_amount") or estimate_portion(food_name)
         portion_g          = portion_info["g"]
         nutrition          = scale_nutrition(nutrition_per_100g, portion_g)
         risk               = food_risk_score(nutrition, portion_g)
@@ -768,16 +1010,22 @@ async def image_food_risk(file: UploadFile = File(...)):
         if not nutrition["data_reliable"]:
             risk["warning"] = "Nutrition data may be incomplete for this item."
 
-        return {
+        return attach_analysis_metadata({
             "detected_food":      food_name,
             "usda_match":         nutrition["food"],
+            "image_insights":     image_analysis,
             "nutrition":          nutrition,
             "nutrition_per_100g": nutrition_per_100g,
             "portion_estimate":   portion_info,
             "risk":               risk,
-        }
+        }, portion_info, nutrition, source="USDA FoodData Central + Google Vision", image_based=True,
+           ingredients=image_analysis.get("detected_ingredients"))
+    except HTTPException:
+        raise
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Food image analysis failed: {e}") from e
     except Exception as e:
-        return {"error": str(e)}
+        raise _internal_error("Image food analysis", e) from e
 
 
 # ── OPEN FOOD FACTS — BARCODE LOOKUP ──────────────────────────────────────────
@@ -792,16 +1040,13 @@ def fetch_off_product(barcode: str) -> dict | None:
     Returns the raw product dict or None if not found.
     """
     url = OFF_URL.format(barcode=barcode.strip())
-    try:
-        resp = requests.get(url, timeout=15,
-                            headers={"User-Agent": "NutriDentAI/1.0"})
-        resp.raise_for_status()
-        data = resp.json()
-        if data.get("status") != 1:
-            return None
-        return data.get("product", None)
-    except Exception:
+    resp = requests.get(url, timeout=15,
+                        headers={"User-Agent": "NutriDentAI/1.0"})
+    resp.raise_for_status()
+    data = resp.json()
+    if data.get("status") != 1:
         return None
+    return data.get("product", None)
 
 
 def extract_off_nutrition(product: dict, portion_g: float) -> dict:
@@ -930,12 +1175,14 @@ def barcode_food_risk(data: BarcodeInput):
     try:
         barcode = data.barcode.strip()
         if not barcode:
-            return {"error": "Barcode cannot be empty"}
+            raise HTTPException(status_code=422, detail="Barcode cannot be empty")
 
         product = fetch_off_product(barcode)
         if not product:
-            return {"error": f"No product found for barcode: {barcode}. "
-                             f"Try searching by name instead."}
+            raise HTTPException(
+                status_code=404,
+                detail=f"No product found for barcode: {barcode}. Try searching by name instead.",
+            )
 
         # Determine portion: user override → label serving size → 100g
         if data.portion_g and data.portion_g > 0:
@@ -957,12 +1204,10 @@ def barcode_food_risk(data: BarcodeInput):
         nutrition = extract_off_nutrition(product, portion_g)
 
         if not nutrition["data_reliable"]:
-            return {
-                "error": "Nutrition data is missing or incomplete for this product. "
-                         "Try searching by food name instead.",
-                "product_name": nutrition["food"],
-                "barcode": barcode,
-            }
+            raise HTTPException(
+                status_code=422,
+                detail="Nutrition data is missing or incomplete for this product. Try searching by food name instead.",
+            )
 
         risk  = food_risk_score(nutrition, portion_g)
         flags = build_label_red_flags(product, nutrition)
@@ -973,7 +1218,7 @@ def barcode_food_risk(data: BarcodeInput):
 
         product_name = nutrition["food"]
 
-        return {
+        return attach_analysis_metadata({
             "barcode":            barcode,
             "product_name":       product_name,
             "detected_food":      product_name,   # keep same key as image endpoint
@@ -986,47 +1231,241 @@ def barcode_food_risk(data: BarcodeInput):
             "label_red_flags":    flags,
             "risk":               risk,
             "source":             "Open Food Facts",
-        }
+        }, portion_info, nutrition, source="Open Food Facts")
 
+    except HTTPException:
+        raise
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Open Food Facts lookup failed: {e}") from e
     except Exception as e:
-        return {"error": str(e)}
+        raise _internal_error("Barcode food lookup", e) from e
 
 
 def detect_food_from_image(image_bytes: bytes) -> str | None:
+    return analyze_food_image(image_bytes).get("food_name")
+
+
+def analyze_food_image(image_bytes: bytes, filename: str | None = None) -> dict:
+    vision_result = _vision_result_from_image(image_bytes)
+    food_name = _best_food_detection(vision_result)
+    if not food_name:
+        return {"food_name": None}
+
+    terms = _vision_terms(vision_result, filename)
+    ingredients = _visible_ingredients_from_terms(terms, food_name)
+    portion_info = estimate_image_portion(food_name, ingredients, terms)
+
+    return {
+        "food_name": food_name,
+        "detected_ingredients": ingredients,
+        "visible_amount": portion_info,
+        "observation_note": _image_observation_note(food_name, ingredients, portion_info),
+        "source": "Google Vision labels plus NutriDent image heuristics",
+    }
+
+
+def _vision_result_from_image(image_bytes: bytes) -> dict:
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
-        raise ValueError("GOOGLE_API_KEY not found in .env file")
+        raise HTTPException(status_code=503, detail="GOOGLE_API_KEY is not configured")
 
     url  = f"https://vision.googleapis.com/v1/images:annotate?key={api_key}"
     body = {
         "requests": [{
             "image":    {"content": base64.b64encode(image_bytes).decode()},
-            "features": [{"type": "LABEL_DETECTION", "maxResults": 10}],
+            "features": [
+                {"type": "LABEL_DETECTION", "maxResults": 15},
+                {"type": "WEB_DETECTION", "maxResults": 10},
+                {"type": "OBJECT_LOCALIZATION", "maxResults": 10},
+            ],
         }]
     }
     response = requests.post(url, json=body, timeout=30)
+    response.raise_for_status()
     result   = response.json()
 
     if "error" in result:
-        raise ValueError(f"Vision API error: {result['error']}")
+        raise HTTPException(status_code=502, detail=f"Vision API error: {_google_error_message(result['error'])}")
 
     responses = result.get("responses", [])
-    if not responses or "error" in responses[0]:
-        raise ValueError("Vision API returned no usable response")
+    if not responses:
+        raise HTTPException(status_code=502, detail="Vision API returned an empty response")
 
-    labels = responses[0].get("labelAnnotations", [])
-    if not labels:
-        raise ValueError("No labels detected in image")
+    vision_result = responses[0]
+    if "error" in vision_result:
+        raise HTTPException(status_code=502, detail=f"Vision API error: {_google_error_message(vision_result['error'])}")
+
+    food_name = _best_food_detection(vision_result)
+    if not food_name:
+        return {}
+    return vision_result
+
+
+def _google_error_message(error: dict | str) -> str:
+    if isinstance(error, str):
+        return error
+    message = error.get("message") or "Unknown Google Vision API error"
+    status = error.get("status")
+    code = error.get("code")
+    prefix = f"{status}: " if status else ""
+    suffix = f" (code {code})" if code else ""
+    return f"{prefix}{message}{suffix}"
+
+
+def _vision_terms(vision_result: dict, filename: str | None = None) -> list[str]:
+    terms: list[str] = []
+    for label in vision_result.get("labelAnnotations", []):
+        terms.append(label.get("description", ""))
+    for obj in vision_result.get("localizedObjectAnnotations", []):
+        terms.append(obj.get("name", ""))
+    web_detection = vision_result.get("webDetection", {}) or {}
+    for entity in web_detection.get("webEntities", []):
+        terms.append(entity.get("description", ""))
+    if filename:
+        terms.extend(filename.replace("_", "-").replace(".", "-").split("-"))
+    return [term.lower().strip() for term in terms if term and term.strip()]
+
+
+def _visible_ingredients_from_terms(terms: list[str], food_name: str) -> list[dict]:
+    joined = " ".join([food_name.lower(), *terms])
+    ingredient_map = {
+        "tomato": ["tomato", "tomatoes", "tomato sauce"],
+        "salami/pepperoni": ["salami", "pepperoni", "sausage"],
+        "olives": ["olive", "olives"],
+        "bell pepper": ["bell pepper", "pepper", "capsicum"],
+        "cheese": ["cheese", "mozzarella"],
+        "basil/herbs": ["basil", "herb", "herbs"],
+        "pizza crust": ["crust", "bread", "dough"],
+        "mushroom": ["mushroom"],
+        "ham": ["ham"],
+        "onion": ["onion"],
+    }
+    ingredients = []
+    for label, markers in ingredient_map.items():
+        if any(marker in joined for marker in markers):
+            confidence = "High" if label in {"cheese", "pizza crust"} and "pizza" in food_name.lower() else "Moderate"
+            ingredients.append({"name": label, "confidence": confidence})
+    return ingredients
+
+
+def estimate_image_portion(food_name: str, ingredients: list[dict] | None = None,
+                           terms: list[str] | None = None) -> dict:
+    name = food_name.lower()
+    joined_terms = " ".join(terms or [])
+    ingredient_count = len(ingredients or [])
+
+    if "pizza" in name:
+        if "slice" in joined_terms and "whole" not in joined_terms:
+            return {
+                "g": 125,
+                "label": "1 visible pizza slice (~125g)",
+                "confidence": "Moderate",
+                "basis": "Photo terms suggest a slice rather than a whole pizza.",
+                "options": [
+                    {"label": "1 slice", "g": 125},
+                    {"label": "2 slices", "g": 250},
+                    {"label": "3 slices", "g": 375},
+                ],
+            }
+        if ingredient_count >= 3 or "whole" in joined_terms or "pizza-pizza" in joined_terms:
+            return {
+                "g": 760,
+                "label": "Whole topped pizza visible (~760g)",
+                "confidence": "Moderate",
+                "basis": "The photo appears to show an entire topped pizza, not a plated serving.",
+                "options": [
+                    {"label": "1 slice", "g": 95},
+                    {"label": "2 slices", "g": 190},
+                    {"label": "Half pizza", "g": 380},
+                    {"label": "Whole pizza", "g": 760},
+                ],
+            }
+        return {
+            "g": 250,
+            "label": "2 pizza slices (~250g)",
+            "confidence": "Low",
+            "basis": "Pizza was detected, but the visible amount is uncertain.",
+            "options": [
+                {"label": "1 slice", "g": 125},
+                {"label": "2 slices", "g": 250},
+                {"label": "Half pizza", "g": 500},
+            ],
+        }
+
+    base = estimate_portion(food_name)
+    return {
+        **base,
+        "basis": "Estimated from detected food category.",
+        "options": [
+            {"label": "Small", "g": round((base["g"] or 150) * 0.65)},
+            {"label": "Medium", "g": base["g"] or 150},
+            {"label": "Large", "g": round((base["g"] or 150) * 1.4)},
+        ],
+    }
+
+
+def _image_observation_note(food_name: str, ingredients: list[dict], portion_info: dict) -> str:
+    ingredient_names = [item["name"] for item in ingredients]
+    if ingredient_names:
+        return (
+            f"Detected {food_name} with visible toppings/ingredients: "
+            f"{', '.join(ingredient_names)}. {portion_info.get('basis', '')}"
+        ).strip()
+    return f"Detected {food_name}. {portion_info.get('basis', '')}".strip()
+
+
+def _best_food_detection(vision_result: dict) -> str | None:
+    candidates: list[tuple[str, float]] = []
+
+    for label in vision_result.get("labelAnnotations", []):
+        name = label.get("description", "")
+        score = float(label.get("score", 0) or 0)
+        candidates.append((name, score))
+
+    for obj in vision_result.get("localizedObjectAnnotations", []):
+        name = obj.get("name", "")
+        score = float(obj.get("score", 0) or 0)
+        candidates.append((name, score))
+
+    web_detection = vision_result.get("webDetection", {}) or {}
+    for entity in web_detection.get("webEntities", []):
+        name = entity.get("description", "")
+        score = float(entity.get("score", 0) or 0)
+        candidates.append((name, min(score, 1.0)))
+
+    if not candidates:
+        return None
 
     skip = {
         "food","dish","cuisine","ingredient","tableware","recipe",
         "meal","plate","bowl","table","fork","knife","spoon",
-        "drink","beverage","snack","fast food",
+        "drink","beverage","snack","fast food","produce","fruit",
+        "vegetable","natural foods","whole food",
     }
-    for label in labels:
-        name  = label.get("description","").lower().strip()
-        score = label.get("score", 0)
-        if name and name not in skip and score > 0.7:
-            return name
 
-    return labels[0].get("description","").lower() or None
+    food_keywords = {
+        "apple","banana","orange","grape","pizza","burger","sandwich",
+        "bread","cake","cookie","donut","pasta","rice","noodle","salad",
+        "chicken","beef","fish","egg","cheese","yogurt","ice cream",
+        "cereal","soup","fries","potato","chocolate","candy","taco",
+        "sushi","steak","oatmeal","pancake","waffle","muffin",
+    }
+
+    cleaned: list[tuple[str, float]] = []
+    for raw_name, raw_score in candidates:
+        name = (raw_name or "").lower().strip()
+        if not name or name in skip:
+            continue
+        score = raw_score
+        if any(keyword in name for keyword in food_keywords):
+            score += 0.35
+        cleaned.append((name, score))
+
+    if not cleaned:
+        return None
+
+    cleaned.sort(key=lambda item: item[1], reverse=True)
+    best_name, best_score = cleaned[0]
+    if best_score < 0.45:
+        return None
+    return best_name

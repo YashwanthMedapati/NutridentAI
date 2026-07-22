@@ -1,14 +1,12 @@
 import React from "react";
 
-// ── RISK BADGE ─────────────────────────────────────────────────────────────────
 export const RiskBadge = ({ risk }) => {
-  const l = (risk || "").toLowerCase();
-  const cls   = l.includes("high") ? "badge-high" : l.includes("medium") ? "badge-medium" : "badge-low";
-  const label = l.includes("high") ? "High Risk"  : l.includes("medium") ? "Medium Risk"  : "Low Risk";
+  const labelSource = (risk || "").toLowerCase();
+  const cls = labelSource.includes("high") ? "badge-high" : labelSource.includes("medium") ? "badge-medium" : "badge-low";
+  const label = labelSource.includes("high") ? "High Risk" : labelSource.includes("medium") ? "Medium Risk" : "Low Risk";
   return <span className={`badge ${cls}`}>{label}</span>;
 };
 
-// ── PROBABILITY BAR ────────────────────────────────────────────────────────────
 export const ProbabilityBar = ({ value }) => {
   const pct = Math.round((parseFloat(value) || 0) * 100);
   const cls = pct >= 70 ? "bar-high" : pct >= 40 ? "bar-medium" : "bar-low";
@@ -22,7 +20,6 @@ export const ProbabilityBar = ({ value }) => {
   );
 };
 
-// ── SECTION CARD ───────────────────────────────────────────────────────────────
 export const SectionCard = ({ icon, title, children, className = "" }) => (
   <div className={`section-card ${className}`}>
     <div className="section-header">
@@ -33,7 +30,6 @@ export const SectionCard = ({ icon, title, children, className = "" }) => (
   </div>
 );
 
-// ── FIELD ──────────────────────────────────────────────────────────────────────
 export const Field = ({ label, children }) => (
   <div className="field">
     <label className="field-label">{label}</label>
@@ -41,26 +37,32 @@ export const Field = ({ label, children }) => (
   </div>
 );
 
-// ── STAT TILE ──────────────────────────────────────────────────────────────────
-export const StatTile = ({ label, value, sub, accent }) => (
+export const StatTile = ({ label, value, sub, accent, icon }) => (
   <div className={`stat-tile ${accent ? "stat-accent" : ""}`}>
+    {icon && <span className="stat-icon">{icon}</span>}
     <span className="stat-value">{value}</span>
     <span className="stat-label">{label}</span>
     {sub && <span className="stat-sub">{sub}</span>}
   </div>
 );
 
-// ── NUTRITION ROW ──────────────────────────────────────────────────────────────
+function formatValue(value, unit = "") {
+  if (value === undefined || value === null || value === "") return "-";
+  const number = Number(value);
+  const clean = Number.isFinite(number) ? Math.round(number * 10) / 10 : value;
+  return unit ? `${clean} ${unit}` : clean;
+}
+
 export const NutritionGrid = ({ nutrition }) => {
   if (!nutrition) return null;
   const items = [
-    { label: "Calories",    value: `${nutrition.energy_kcal ?? "—"} kcal` },
-    { label: "Sugar",       value: `${nutrition.sugar_g ?? "—"} g` },
-    { label: "Carbs",       value: `${nutrition.carbs_g ?? "—"} g` },
-    { label: "Fat",         value: `${nutrition.fat_g ?? "—"} g` },
-    { label: "Protein",     value: `${nutrition.protein_g ?? "—"} g` },
-    { label: "Calcium",     value: `${nutrition.calcium_mg ?? "—"} mg` },
-    { label: "Phosphorus",  value: `${nutrition.phosphorus_mg ?? "—"} mg` },
+    { label: "Calories", value: formatValue(nutrition.energy_kcal, "kcal") },
+    { label: "Sugar", value: formatValue(nutrition.sugar_g, "g") },
+    { label: "Carbs", value: formatValue(nutrition.carbs_g, "g") },
+    { label: "Fat", value: formatValue(nutrition.fat_g, "g") },
+    { label: "Protein", value: formatValue(nutrition.protein_g, "g") },
+    { label: "Calcium", value: formatValue(nutrition.calcium_mg, "mg") },
+    { label: "Phosphorus", value: formatValue(nutrition.phosphorus_mg, "mg") },
   ];
   return (
     <div className="nutrition-grid">
@@ -74,44 +76,55 @@ export const NutritionGrid = ({ nutrition }) => {
   );
 };
 
-// ── SPINNER ────────────────────────────────────────────────────────────────────
+export const MacroAnalysis = ({ nutrition }) => {
+  if (!nutrition) return null;
+  const calories = Number(nutrition.energy_kcal || 0);
+  const macros = [
+    { label: "Carbs", value: Number(nutrition.carbs_g || 0), kcalPerGram: 4, className: "macro-carb" },
+    { label: "Protein", value: Number(nutrition.protein_g || 0), kcalPerGram: 4, className: "macro-protein" },
+    { label: "Fat", value: Number(nutrition.fat_g || 0), kcalPerGram: 9, className: "macro-fat" },
+    { label: "Sugar", value: Number(nutrition.sugar_g || 0), kcalPerGram: 4, className: "macro-sugar" },
+  ];
+  return (
+    <div className="macro-analysis">
+      {macros.map(item => {
+        const macroCalories = item.value * item.kcalPerGram;
+        const pct = calories ? Math.min(Math.round((macroCalories / calories) * 100), 100) : 0;
+        return (
+          <div className="macro-row" key={item.label}>
+            <div className="macro-row-head">
+              <span>{item.label}</span>
+              <strong>{formatValue(item.value, "g")}</strong>
+              <small>{Math.round(macroCalories)} kcal est.</small>
+            </div>
+            <div className="macro-track">
+              <div className={`macro-fill ${item.className}`} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 export const Spinner = () => <span className="spinner" />;
 
-// ── ALERT ──────────────────────────────────────────────────────────────────────
 export const Alert = ({ type = "error", children }) => (
   <div className={`alert alert-${type}`}>{children}</div>
 );
 
-export const RiskBar = ({ score, level }) => {
-  const maxScore = 10; // since your max is ~9
-  const percentage = (score / maxScore) * 100;
-
-  let color = "#22c55e"; // green
-  if (level === "Medium") color = "#f59e0b"; // yellow
-  if (level === "High") color = "#ef4444"; // red
+export const RiskBar = ({ score = 0, level }) => {
+  const percentage = Math.min((Number(score || 0) / 10) * 100, 100);
+  let color = "#22c55e";
+  if (level === "Medium") color = "#f59e0b";
+  if (level === "High") color = "#ef4444";
 
   return (
-    <div style={{ marginTop: "6px" }}>
-      <div
-        style={{
-          height: "8px",
-          background: "#333",
-          borderRadius: "5px",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            width: `${percentage}%`,
-            height: "100%",
-            background: color,
-            transition: "0.3s",
-          }}
-        />
+    <div className="risk-mini-bar">
+      <div className="risk-mini-track">
+        <div style={{ width: `${percentage}%`, background: color }} />
       </div>
-      <span style={{ fontSize: "12px", color: "#ccc" }}>
-        {level} Risk
-      </span>
+      <span>{level || "Low"} Risk</span>
     </div>
   );
 };

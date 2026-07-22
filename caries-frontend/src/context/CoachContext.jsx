@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext } from "react";
+import { useLocalStorageState } from "../hooks/useLocalStorageState";
 
 const CoachContext = createContext(null);
 
@@ -45,33 +46,50 @@ export const TARGETS = {
   fiber_g:    28,
 };
 
+const ACTIVITY_FACTORS = {
+  sedentary: 1.2,
+  light: 1.375,
+  moderate: 1.55,
+  active: 1.725,
+  athlete: 1.9,
+};
+
 export function CoachProvider({ children }) {
   // ── PROFILE ────────────────────────────────────────────────────────────────
-  const [profile, setProfile] = useState({
+  const [profile, setProfile] = useLocalStorageState("nutrident.coach.profile", {
     weight: "",         // kg, current
     goal_weight: "",    // kg
     goal_type: "maintain", // lose | gain | maintain
     height: "",         // cm
     age: "",
     gender: "1",        // 1=male 2=female
+    activity_level: "sedentary",
+    goal_date: "",
+    calorie_target: "",
+    maintenance_calories: "",
+    protein_target_g: "",
+    carbs_target_g: "",
+    fat_target_g: "",
+    sugar_limit_g: "",
+    fiber_target_g: "",
   });
 
   // ── MEALS LOG — keyed by date string ──────────────────────────────────────
   // Structure: { "2025-04-24": { Breakfast: [...], Lunch: [...], Dinner: [...], Snacks: [...] } }
-  const [mealLog, setMealLog] = useState({});
+  const [mealLog, setMealLog] = useLocalStorageState("nutrident.coach.mealLog", {});
 
   // ── WATER TRACKER ─────────────────────────────────────────────────────────
-  const [waterLog, setWaterLog]   = useState({});   // { "2025-04-24": number_of_glasses }
-  const [waterGoal, setWaterGoal] = useState(8);    // glasses per day
+  const [waterLog, setWaterLog]   = useLocalStorageState("nutrident.coach.waterLog", {});   // { "2025-04-24": number_of_glasses }
+  const [waterGoal, setWaterGoal] = useLocalStorageState("nutrident.coach.waterGoal", 8);    // glasses per day
 
   // ── WEIGHT LOG ────────────────────────────────────────────────────────────
-  const [weightLog, setWeightLog] = useState([]);   // [{ date, weight }]
+  const [weightLog, setWeightLog] = useLocalStorageState("nutrident.coach.weightLog", []);   // [{ date, weight }]
 
   // ── BADGES ────────────────────────────────────────────────────────────────
-  const [earnedBadges, setEarnedBadges] = useState([]);  // array of badge ids
+  const [earnedBadges, setEarnedBadges] = useLocalStorageState("nutrident.coach.earnedBadges", []);  // array of badge ids
 
   // ── STREAKS ───────────────────────────────────────────────────────────────
-  const [streaks, setStreaks] = useState({
+  const [streaks, setStreaks] = useLocalStorageState("nutrident.coach.streaks", {
     logging:   0,
     sugar:     0,
     hydration: 0,
@@ -169,10 +187,18 @@ export function CoachProvider({ children }) {
     const a = Number(profile.age    || 0);
     if (!w || !h || !a) return { maintenance: TARGETS.calories, target: TARGETS.calories };
     const bmr = 10 * w + 6.25 * h - 5 * a + (profile.gender === "1" ? 5 : -161);
-    const maintenance = Math.round(bmr * 1.2);
-    let target = maintenance;
-    if (profile.goal_type === "lose") target -= 300;
-    if (profile.goal_type === "gain") target += 300;
+    const activityFactor = ACTIVITY_FACTORS[profile.activity_level] || ACTIVITY_FACTORS.sedentary;
+    const maintenance = Math.round(Number(profile.maintenance_calories) || bmr * activityFactor);
+    let target = Number(profile.calorie_target) || maintenance;
+    if (!profile.calorie_target) {
+      const goal = Number(profile.goal_weight || w);
+      const goalDate = profile.goal_date ? new Date(profile.goal_date) : null;
+      const today = new Date();
+      const daysToGoal = goalDate && goalDate > today ? Math.max(1, Math.ceil((goalDate - today) / 86400000)) : 0;
+      if (daysToGoal) target += Math.max(-750, Math.min(500, Math.round(((goal - w) * 7700) / daysToGoal)));
+      else if (profile.goal_type === "lose") target -= 300;
+      else if (profile.goal_type === "gain") target += 300;
+    }
     return { maintenance, target: Math.round(target) };
   };
 
@@ -212,11 +238,11 @@ export function CoachProvider({ children }) {
     const ct   = calorieTargets();
     const vals = [
       Math.min(todayTotal("energy_kcal") / ct.target, 1),
-      Math.min(todayTotal("protein_g")   / TARGETS.protein_g, 1),
-      Math.min(todayTotal("carbs_g")     / TARGETS.carbs_g, 1),
-      Math.min(todayTotal("fat_g")       / TARGETS.fat_g, 1),
+      Math.min(todayTotal("protein_g")   / (Number(profile.protein_target_g) || TARGETS.protein_g), 1),
+      Math.min(todayTotal("carbs_g")     / (Number(profile.carbs_target_g) || TARGETS.carbs_g), 1),
+      Math.min(todayTotal("fat_g")       / (Number(profile.fat_target_g) || TARGETS.fat_g), 1),
       Math.min(todayTotal("calcium_mg")  / TARGETS.calcium_mg, 1),
-      Math.min(todayTotal("fiber_g")     / TARGETS.fiber_g, 1),
+      Math.min(todayTotal("fiber_g")     / (Number(profile.fiber_target_g) || TARGETS.fiber_g), 1),
     ];
     return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 100);
   };

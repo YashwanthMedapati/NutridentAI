@@ -8,6 +8,8 @@ node_modules/
 
 # Env
 .env
+.env.*
+!.env.example
 
 # OS
 .DS_Store
@@ -19,3 +21,4 @@ build/
 
 # Logs
 npm-debug.log*
+*.log
