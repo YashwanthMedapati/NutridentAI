@@ -1,0 +1,274 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   NUTRIDENT COACH
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── COACH PAGE HEADER ────────────────────────────────────────────────────────── */
+.coach-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.coach-level-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+.level-emoji { font-size: 22px; }
+.level-name  { display: block; font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--text); }
+.level-sub   { display: block; font-size: 11px; color: var(--text3); }
+
+/* ── PROFILE PANEL ────────────────────────────────────────────────────────────── */
+.profile-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  animation: fadeUp 0.2s ease;
+}
+.profile-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 14px; }
+.profile-grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+
+/* ── COACH TAB BAR ────────────────────────────────────────────────────────────── */
+.coach-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.coach-tabs::-webkit-scrollbar { display: none; }
+.coach-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  padding: 10px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.coach-tab:hover { color: var(--text); }
+.coach-tab.active { color: var(--text); border-bottom-color: var(--text); }
+
+/* ── RING ─────────────────────────────────────────────────────────────────────── */
+.ring-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+.ring-label { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text); line-height: 1; }
+.ring-sub   { font-size: 10px; color: var(--text3); }
+
+/* ── HERO ROW ─────────────────────────────────────────────────────────────────── */
+.coach-hero-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.coach-score-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.coach-score-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); text-align: center; }
+.coach-score-sub   { font-size: 11px; color: var(--text3); text-align: center; }
+.cario-display     { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cario-score       { font-family: var(--font-display); font-size: 28px; font-weight: 800; }
+.cario-subscore    { font-size: 11px; color: var(--text3); }
+
+/* ── MACRO SECTION ────────────────────────────────────────────────────────────── */
+.coach-macro-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 14px;
+}
+.coach-macro-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.coach-macro-section.collapsed .coach-macro-header {
+  margin-bottom: 12px;
+}
+.collapsible-head {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+.collapsible-head:hover .collapse-indicator {
+  border-color: var(--border2);
+  color: var(--text);
+}
+.coach-section-title { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text); }
+.coach-section-sub {
+  display: block;
+  color: var(--text3);
+  font-size: 12px;
+  margin-top: 3px;
+}
+.coach-cal-summary   { font-size: 13px; color: var(--text2); }
+.coach-macro-head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.collapse-indicator {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  transition: border-color 0.16s, color 0.16s;
+}
+.coach-macro-collapsed-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+.coach-macro-collapsed-row strong {
+  color: var(--text);
+  display: block;
+  font-family: var(--font-display);
+  font-size: 15px;
+  margin-bottom: 3px;
+}
+.coach-macro-collapsed-row p {
+  color: var(--text2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.coach-cal-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+.coach-macros-grid { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.nutrient-ring-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.nutrient-ring-card {
+  align-items: center;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 168px;
+  padding: 14px 10px;
+  text-align: center;
+}
+.nutrient-ring-label {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+}
+.nutrient-ring-target {
+  color: var(--text3);
+  font-size: 11px;
+}
+
+/* ── PROGRESS ROW ─────────────────────────────────────────────────────────────── */
+.coach-prog-row    { display: flex; flex-direction: column; gap: 4px; }
+.coach-prog-labels { display: flex; justify-content: space-between; }
+.coach-prog-label  { font-size: 12px; color: var(--text2); }
+.coach-prog-value  { font-size: 12px; color: var(--text2); }
+.coach-prog-track  { height: 5px; background: var(--track); border-radius: 100px; overflow: hidden; }
+.coach-prog-fill   { height: 100%; border-radius: 100px; transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
+
+/* ── STREAKS ROW ──────────────────────────────────────────────────────────────── */
+.coach-streaks-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.streak-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.streak-icon  { font-size: 20px; }
+.streak-value { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--text); }
+.streak-unit  { font-size: 11px; color: var(--text3); }
+.streak-label { font-size: 11px; color: var(--text2); text-align: center; }
+
+/* ── INSIGHTS CARD ────────────────────────────────────────────────────────────── */
+.coach-insights-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.insights-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.insight-item  { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--text2); padding: 8px 12px; border-radius: 8px; }
+.insight-item.insight-good { background: var(--low-bg); }
+.insight-item.insight-warn { background: var(--medium-bg); }
+.insight-item.insight-info { background: var(--card2); }
+.insight-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 5px;
+}
+.insight-good .insight-dot { background: var(--low); }
+.insight-warn .insight-dot { background: var(--medium); }
+.insight-info .insight-dot { background: var(--text3); }
+
+/* ── SWAPS CARD ───────────────────────────────────────────────────────────────── */
+.coach-swaps-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.swaps-list   { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.swap-item    { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
+.swap-from    { color: var(--text2); background: var(--high-bg); padding: 4px 10px; border-radius: 100px; }
+.swap-arrow   { color: var(--text3); font-size: 16px; }
+.swap-to      { color: var(--low); background: var(--low-bg); padding: 4px 10px; border-radius: 100px; }

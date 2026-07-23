@@ -1,0 +1,130 @@
+/* ── BARCODE ACTIVE TAB ───────────────────────────────────────────────────────── */
+.barcode-active {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.barcode-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.barcode-header-icon  { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+.barcode-header-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.barcode-header-sub   { font-size: 13px; color: var(--text2); line-height: 1.5; }
+
+.barcode-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.barcode-icon-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.barcode-lines-sm {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+}
+.barcode-line-sm {
+  width: 2px;
+  background: var(--text2);
+  border-radius: 1px;
+}
+
+.barcode-format-hint {
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: 0.02em;
+}
+.barcode-camera-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.5;
+}
+.barcode-camera-note span:first-child { flex-shrink: 0; font-size: 14px; }
+.barcode-camera-note code { background: var(--bg3); padding: 1px 5px; border-radius: 4px; font-size: 11px; color: var(--low); }
+
+/* ── LABEL RED FLAGS CARD ──────────────────────────────────────────────────────── */
+.label-flags-card {
+  background: var(--card);
+  border: 1px solid rgba(217,161,63,0.25);   /* amber border — warning tone */
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+.label-source-badge {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text3);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 2px 10px;
+}
+.label-brand {
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 10px;
+}
+.label-flags-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.label-flags-list li {
+  font-size: 13px;
+  color: var(--text2);
+  padding: 8px 12px;
+  background: var(--medium-bg);
+  border: 1px solid rgba(217,161,63,0.15);
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+/* ── INGREDIENTS DETAILS ──────────────────────────────────────────────────────── */
+.ingredients-detail {
+  margin-top: 8px;
+}
+.ingredients-detail summary {
+  font-size: 12px;
+  color: var(--text3);
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+  transition: color 0.15s;
+}
+.ingredients-detail summary:hover { color: var(--text2); }
+.ingredients-text {
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.6;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--bg2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+/* ── RESPONSIVE ───────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .barcode-entry-row { flex-direction: column; align-items: stretch; }
+  .barcode-icon-wrap { display: none; }
+}

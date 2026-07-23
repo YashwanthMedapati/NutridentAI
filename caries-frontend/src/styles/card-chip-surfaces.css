@@ -1,0 +1,56 @@
+/* ── CARD & CHIP SURFACES ────────────────────────────────────────────────────
+   Single source of truth for the "card" and nested "chip" background/border
+   treatment app-wide. Solid surfaces, no blur, no gradients — replaces three
+   generations of layered !important glassmorphism overrides that used to
+   live here (and a second, near-duplicate copy further down this file).
+   Card-level classes not listed here (result-card, fr-card, home-card,
+   stat-tile, explainer-card, step-card, hero-product-card, section-card)
+   are handled by the SIGNATURE CARD SYSTEM section, which also adds the
+   hover lift. freq-risk-card and correction-card keep their own
+   intentionally-tinted borders from their base rules, so they're not
+   restated here either. */
+.daily-journal-card,
+.analyze-input-card,
+.auth-card,
+.weight-log-card,
+.calorie-plan-card,
+.level-display-card,
+.water-streak-card,
+.prev-result-card,
+.tip-card,
+.about-factor-card,
+.settings-card,
+.guided-confirm-card {
+  background: var(--card);
+  border-color: var(--border);
+}
+.result-card-head,
+.fr-card-head,
+.home-card-head,
+.daily-journal-head,
+.search-result-head {
+  border-bottom-color: var(--border);
+}
+.nutrition-item,
+.journal-date-chip,
+.fli-time,
+.action-plan-item,
+.consumption-note,
+.macro-row,
+.timeline-event,
+.meal-item,
+.barcode-camera-note,
+.image-insights-card,
+.analysis-quality-card,
+.per100g-row span,
+.label-flags-list li,
+.search-result-block,
+.food-log-item,
+.journal-metric,
+.calendar-day,
+.week-summary-card,
+.macro-detail-card,
+.ingredient-calorie-card {
+  background: var(--bg2);
+  border-color: var(--border);
+}

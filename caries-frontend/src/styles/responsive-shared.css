@@ -1,0 +1,48 @@
+/* ── RESPONSIVE ───────────────────────────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .hero-inner, .results-top-grid, .nt-main-grid, .nt-summary-row,
+  .stats-row, .explainer-grid, .steps-row, .home-cards,
+  .food-results-grid, .charts-row, .charts-page-grid, .analytics-grid { grid-template-columns: 1fr; }
+  .analytics-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nav-links { display: none; flex-direction: column; width: 100%; background: var(--nav-bg); padding: 8px 0; }
+  .nav-links.open { display: flex; }
+  .nav-link { padding: 12px 24px; border-bottom: none; border-left: 2px solid transparent; }
+  .nav-link.active { border-left-color: var(--sprout); }
+  .nav-more { width: 100%; }
+  .nav-more-menu {
+    position: static;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0 0 0 10px;
+  }
+  .nav-more-menu .nav-link {
+    padding-left: 34px;
+  }
+  .hamburger { display: block; }
+  .tips-grid { grid-template-columns: 1fr 1fr; }
+  .nutrition-grid { grid-template-columns: repeat(2,1fr); }
+  .hero-visual { display: none; }
+  .results-top-grid { grid-template-columns: 1fr; }
+  .journal-metrics-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .page { padding: 20px 16px 40px; }
+  .top-bar-inner { padding: 0 16px; }
+  .top-brand-tag, .cloud-status { display: none; }
+  .theme-label { display: none; }
+  .result-card, .fr-card { padding: 14px; }
+  .btn-primary.large { width: 100%; justify-content: center; }
+  .quick-search-row, .search-input-row, .daily-journal-head, .journal-weight-row { flex-direction: column; }
+  .journal-date-input, .journal-weight-row .weight-input { max-width: none; width: 100%; }
+  .settings-grid { grid-template-columns: 1fr; }
+  .fli-top { flex-wrap: wrap; }
+  .fli-time-col { flex-basis: 100%; }
+  .fli-time { justify-content: flex-start; }
+  .quiz-fields.two-col { grid-template-columns: 1fr; }
+  .tips-grid { grid-template-columns: 1fr; }
+  .analytics-summary-grid { grid-template-columns: 1fr; }
+  .top-risk-item { align-items: flex-start; }
+  .footer-inner { flex-direction: column; text-align: center; }
+}
