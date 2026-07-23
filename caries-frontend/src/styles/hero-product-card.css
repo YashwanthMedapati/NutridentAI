@@ -1,0 +1,202 @@
+/* Clean home redesign */
+.home-page .hero {
+  padding: 54px 0 46px;
+}
+.home-page .hero-inner {
+  grid-template-columns: minmax(0, 1.05fr) minmax(330px, 0.95fr);
+  gap: 56px;
+  align-items: center;
+}
+.home-page .hero-text {
+  max-width: 650px;
+}
+.home-page .hero-brand-logo {
+  width: min(390px, 88%);
+  max-height: 92px;
+  margin-bottom: 24px;
+  filter: drop-shadow(0 18px 28px rgba(0,0,0,0.25));
+}
+.home-page .hero-tag {
+  background: transparent;
+  border-color: rgba(132,204,22,0.28);
+  color: var(--text2);
+  box-shadow: none;
+  margin-bottom: 22px;
+}
+.home-page .hero-title {
+  font-size: clamp(2.65rem, 6vw, 5.1rem);
+  letter-spacing: 0;
+  line-height: 0.98;
+  margin-bottom: 22px;
+}
+.home-page .hero-sub {
+  max-width: 590px;
+  font-size: 16px;
+  line-height: 1.75;
+  margin-bottom: 28px;
+}
+.home-page .hero-actions .btn-primary {
+  min-width: 150px;
+}
+/* Card shell: solid, no blur. Structure (grid/flex) lives here; the
+   scan-line sweep motion is defined once, in the SIGNATURE CARD SYSTEM
+   section below, alongside the rest of this card's material. */
+.hero-product-card {
+  position: relative;
+  border-radius: 20px;
+  padding: 0 0 20px;
+  overflow: hidden;
+}
+.hero-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card2);
+}
+.hero-preview-head img {
+  display: block;
+  width: 200px;
+  height: 58px;
+  object-fit: contain;
+  object-position: left center;
+  background: transparent;
+}
+.hero-preview-head span {
+  color: var(--text3);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.hero-scan-core {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 18px;
+  align-items: center;
+  padding: 20px 20px 0;
+}
+.hero-scan-orb {
+  width: 82px;
+  height: 82px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  position: relative;
+}
+.hero-scan-orb::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 28px;
+  border: 1px solid var(--sprout);
+  animation: scanPulse 2.2s ease-out infinite;
+}
+.hero-scan-orb span {
+  font-size: 34px;
+}
+.hero-scan-core strong {
+  display: block;
+  color: var(--text);
+  font-size: 22px;
+  margin-bottom: 3px;
+}
+.hero-scan-core p {
+  color: var(--text2);
+  font-size: 13px;
+}
+.hero-risk-meter {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  margin: 22px 20px 14px;
+}
+.hero-risk-meter > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text2);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.hero-risk-meter strong {
+  color: var(--high);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+}
+.hero-risk-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+}
+.hero-risk-track span {
+  display: block;
+  width: 78%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ochre), var(--terracotta));
+}
+.hero-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 20px 14px;
+}
+.hero-preview-grid div {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+}
+.hero-preview-grid span,
+.hero-insight-strip span {
+  color: var(--text3);
+  font-size: 11px;
+}
+.hero-preview-grid strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  margin-top: 2px;
+}
+.hero-insight-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 20px;
+}
+.hero-insight-strip span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg2);
+  color: var(--text2);
+  padding: 6px 9px;
+}
+@media (max-width: 960px) {
+  .home-page .hero-inner {
+    grid-template-columns: 1fr;
+  }
+  .home-page .hero-visual {
+    display: flex;
+  }
+}
+@media (max-width: 560px) {
+  .hero-preview-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .hero-preview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .hero-scan-core {
+    grid-template-columns: 1fr;
+  }
+}

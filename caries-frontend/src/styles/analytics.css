@@ -1,0 +1,119 @@
+/* ── CHARTS PAGE ──────────────────────────────────────────────────────────────── */
+.charts-page-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.charts-full { grid-column: 1 / -1; }
+
+/* BEHAVIOR ANALYTICS */
+.analytics-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.analytics-stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.analytics-stat-card strong {
+  font-family: var(--font-display);
+  font-size: 23px;
+  color: var(--text);
+  line-height: 1.05;
+}
+.analytics-stat-card span {
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.45;
+}
+.analytics-stat-label {
+  color: var(--text3);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.analytics-full { grid-column: 1 / -1; }
+.analytics-muted {
+  color: var(--text3);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+.analytics-insight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.analytics-insight {
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--bg2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.analytics-insight strong {
+  font-size: 13px;
+  color: var(--text);
+}
+.analytics-insight span {
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.5;
+}
+.analytics-insight.good { border-left-color: var(--low); }
+.analytics-insight.watch { border-left-color: var(--medium); }
+.analytics-insight.alert { border-left-color: var(--high); }
+.analytics-insight.neutral { border-left-color: var(--text3); }
+.top-risk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.top-risk-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg2);
+  padding: 12px;
+}
+.top-risk-item div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.top-risk-item strong {
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.top-risk-item span {
+  color: var(--text2);
+  font-size: 12px;
+}
+.risk-score-pill {
+  border: 1px solid;
+  border-radius: 999px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+}

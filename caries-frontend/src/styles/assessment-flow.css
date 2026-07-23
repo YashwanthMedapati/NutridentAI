@@ -1,0 +1,88 @@
+/* Assessment flow */
+.assessment-plan-card,
+.choice-card,
+.coach-target-list div {
+  border: 1px solid var(--border);
+  background: var(--bg2);
+}
+.assessment-plan-card {
+  border-radius: 14px;
+  padding: 16px;
+  margin-top: 16px;
+}
+.assessment-plan-card strong {
+  display: block;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin: 4px 0;
+}
+.assessment-plan-card p {
+  color: var(--text2);
+  font-size: 13px;
+}
+.choice-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.choice-card {
+  border-radius: 14px;
+  color: var(--text2);
+  cursor: pointer;
+  padding: 16px;
+  text-align: left;
+  transition: transform 0.18s, border-color 0.18s, background 0.18s;
+}
+.choice-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--border2);
+}
+.choice-card.active {
+  background: var(--card2);
+  border-color: var(--text2);
+}
+.choice-card strong {
+  display: block;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 15px;
+  margin-bottom: 5px;
+}
+.choice-card span {
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.result-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.coach-target-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.coach-target-list div {
+  border-radius: 10px;
+  padding: 11px;
+}
+.coach-target-list span {
+  display: block;
+  color: var(--text3);
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.coach-target-list strong {
+  color: var(--text);
+  font-size: 14px;
+}
+@media (max-width: 680px) {
+  .choice-row,
+  .coach-target-list {
+    grid-template-columns: 1fr;
+  }
+}

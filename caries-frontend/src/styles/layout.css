@@ -1,0 +1,138 @@
+/* ── SHELL ────────────────────────────────────────────────────────────────────── */
+.app-shell { display: flex; flex-direction: column; min-height: 100vh; }
+.main-content { flex: 1; }
+
+/* ── HEADER STACK ─────────────────────────────────────────────────────────────── */
+.header-stack { position: sticky; top: 0; z-index: 100; }
+
+/* TOP BAR */
+.top-bar {
+  background: var(--nav-bg);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.top-bar-inner {
+  max-width: 1200px; margin: 0 auto; padding: 0 24px;
+  height: 56px; display: flex; align-items: center; justify-content: space-between;
+}
+.top-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.top-brand-logo {
+  display: block;
+  width: min(230px, 46vw);
+  height: 46px;
+  object-fit: contain;
+  object-position: left center;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+.top-brand-icon {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  background: var(--card2);
+}
+.top-brand-text { display: flex; flex-direction: column; }
+.top-brand-name { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--text); line-height: 1.1; }
+.top-brand-tag  { font-size: 10px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; }
+.top-actions { display: flex; align-items: center; gap: 10px; }
+.theme-toggle {
+  display: flex; align-items: center; gap: 6px; padding: 6px 14px;
+  background: var(--card2); border: 1px solid var(--border); border-radius: 100px;
+  font-size: 13px; color: var(--text2); cursor: pointer; transition: all 0.15s;
+}
+.theme-toggle:hover { border-color: var(--border2); color: var(--text); }
+.theme-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  font-size: 10px;
+  font-weight: 700;
+}
+.theme-label { font-size: 12px; font-weight: 500; }
+.cloud-status {
+  font-size: 11px;
+  color: var(--text3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 8px;
+}
+
+/* NAV BAR */
+.nav-bar {
+  background: var(--nav-bg);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-bar-inner {
+  max-width: 1200px; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.nav-links { display: flex; align-items: center; }
+.nav-link {
+  text-decoration: none; font-size: 13px; font-weight: 600;
+  color: var(--text2); padding: 10px 13px; border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s; white-space: nowrap;
+}
+.nav-link:hover { color: var(--text); }
+.nav-link.active { color: var(--text); border-bottom-color: var(--sprout); }
+.nav-more {
+  position: relative;
+}
+.nav-more summary {
+  list-style: none;
+}
+.nav-more summary::-webkit-details-marker {
+  display: none;
+}
+.nav-more-trigger {
+  display: block;
+  cursor: pointer;
+}
+.nav-more-trigger::after {
+  content: " v";
+  color: var(--text3);
+  font-size: 10px;
+}
+.nav-more-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 6px;
+  z-index: 120;
+}
+.nav-more-menu .nav-link {
+  border-bottom: 0;
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+.nav-more-menu .nav-link.active {
+  background: var(--bg2);
+}
+.hamburger { display: none; background: none; border: none; font-size: 18px; color: var(--text2); cursor: pointer; padding: 10px; }
+
+/* ── PAGE ─────────────────────────────────────────────────────────────────────── */
+.page { max-width: 1100px; margin: 0 auto; padding: 36px 24px 60px; }
+.page-header { margin-bottom: 28px; }
+.page-title { font-family: var(--font-display); font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+.page-sub   { font-size: 14px; color: var(--text2); }

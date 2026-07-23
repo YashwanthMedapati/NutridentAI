@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&display=swap');
+
+/*
+ * Back to Syne (display) + DM Sans (body/mono) everywhere via the three
+ * font tokens below, so nothing renders inconsistently across the app.
+ * Colors are named after what they mean in the data, not what they look
+ * like: Sprout is the protective/brand green (echoes the wordmark), Terracotta
+ * is sugar/acid exposure, Mineral is calcium/phosphorus, Ochre is caution.
+ */
+
+/* ── DARK THEME (default) ─────────────────────────────────────────────────────── */
+:root, [data-theme="dark"] {
+  --font-display: 'Syne', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+  --font-mono:    'DM Sans', sans-serif;
+
+  --bg:       #050506;
+  --bg2:      #0e0f12;
+  --bg3:      #121318;
+  --card:     #0f1014;
+  --card2:    #161721;
+  --border:   rgba(255,255,255,0.10);
+  --border2:  rgba(255,255,255,0.18);
+  --track:    rgba(255,255,255,0.09);
+  --text:     #f0f2f8;
+  --text2:    #94a3b8;
+  --text3:    #4a5568;
+
+  --sprout:      #6fcb4c; --sprout-bg:      rgba(111,203,76,0.12);
+  --terracotta:  #e0725a; --terracotta-bg:  rgba(224,114,90,0.12);
+  --mineral:     #6fa8c4; --mineral-bg:     rgba(111,168,196,0.12);
+  --ochre:       #d9a13f; --ochre-bg:       rgba(217,161,63,0.12);
+
+  --high:     var(--terracotta); --high-bg:   var(--terracotta-bg);
+  --medium:   var(--ochre);      --medium-bg: var(--ochre-bg);
+  --low:      var(--sprout);     --low-bg:    var(--sprout-bg);
+  --accent:   var(--sprout);
+  --nav-bg:   rgba(2,5,3,0.85);
+  --shadow:       0 1px 0 rgba(255,255,255,0.03) inset, 0 14px 32px rgba(0,0,0,0.42);
+  --shadow-lift:  0 1px 0 rgba(255,255,255,0.04) inset, 0 22px 46px rgba(0,0,0,0.5);
+}
+/* ── LIGHT THEME ──────────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:       #eef1ed;
+  --bg2:      #f8f9f6;
+  --bg3:      #ffffff;
+  --card:     #fdfdfb;
+  --card2:    #f5f6f2;
+  --border:   rgba(23,27,23,0.12);
+  --border2:  rgba(23,27,23,0.20);
+  --track:    rgba(23,27,23,0.10);
+  --text:     #181a15;
+  --text2:    #565f54;
+  --text3:    #838c7f;
+
+  --sprout:      #3c7a37; --sprout-bg:      rgba(60,122,55,0.09);
+  --terracotta:  #ac4a31; --terracotta-bg:  rgba(172,74,49,0.09);
+  --mineral:     #386d87; --mineral-bg:     rgba(56,109,135,0.09);
+  --ochre:       #96691b; --ochre-bg:       rgba(150,105,27,0.09);
+
+  --high:     var(--terracotta); --high-bg:   var(--terracotta-bg);
+  --medium:   var(--ochre);      --medium-bg: var(--ochre-bg);
+  --low:      var(--sprout);     --low-bg:    var(--sprout-bg);
+  --accent:   var(--sprout);
+  --nav-bg:   rgba(238,241,237,0.78);
+  --shadow:       0 1px 0 rgba(255,255,255,0.6) inset, 0 14px 32px rgba(24,32,23,0.08);
+  --shadow-lift:  0 1px 0 rgba(255,255,255,0.7) inset, 0 22px 46px rgba(24,32,23,0.13);
+}
+
+/* ── RESET ────────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased; transition: background 0.25s, color 0.25s;
+}
+
+[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 12% 12%, rgba(24,32,23,0.05), transparent 30%),
+    linear-gradient(180deg, #f2f4f0, #e7ebe4);
+}
