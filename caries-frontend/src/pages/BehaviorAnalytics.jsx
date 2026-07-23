@@ -16,9 +16,9 @@ import { useApp } from "../context/AppContext";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RISK_COLORS = {
-  Low: "#22c55e",
-  Medium: "#f59e0b",
-  High: "#ef4444",
+  Low: "var(--low)",
+  Medium: "var(--medium)",
+  High: "var(--high)",
 };
 
 function dateKeyFor(item) {
@@ -264,7 +264,7 @@ export default function BehaviorAnalytics() {
 
       {!hasData ? (
         <div className="empty-state">
-          <div className="empty-icon">Analytics</div>
+          <div className="empty-icon">📊</div>
           <h3>No behavior data yet</h3>
           <p>Analyze food, add items to the daily log, and record weight to see trends here.</p>
           <div className="empty-actions">
@@ -310,7 +310,7 @@ export default function BehaviorAnalytics() {
                   <Tooltip {...tt} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="calories" name="Calories" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="sugar" name="Sugar (g)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="sugar" name="Sugar (g)" fill="var(--medium)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -323,7 +323,7 @@ export default function BehaviorAnalytics() {
                   <XAxis dataKey="label" stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
                   <YAxis domain={[0, 10]} stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
                   <Tooltip {...tt} />
-                  <Line type="monotone" dataKey="avgRisk" name="Avg risk" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="avgRisk" name="Avg risk" stroke="var(--high)" strokeWidth={2} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -364,7 +364,7 @@ export default function BehaviorAnalytics() {
                     <YAxis yAxisId="left" stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
                     <YAxis yAxisId="right" orientation="right" stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
                     <Tooltip {...tt} />
-                    <Line yAxisId="left" type="monotone" dataKey="sugar" name="Sugar (g)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line yAxisId="left" type="monotone" dataKey="sugar" name="Sugar (g)" stroke="var(--medium)" strokeWidth={2} dot={{ r: 3 }} />
                     <Line yAxisId="right" type="monotone" dataKey="weight" name="Weight (kg)" stroke="#7c3aed" strokeWidth={2} connectNulls dot={{ r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -383,7 +383,7 @@ export default function BehaviorAnalytics() {
                     <YAxis stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
                     <Tooltip {...tt} />
                     <Bar dataKey="count" name="Items" fill="#0891b2" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="avgRisk" name="Avg risk" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="avgRisk" name="Avg risk" fill="var(--high)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -400,7 +400,7 @@ export default function BehaviorAnalytics() {
                   <YAxis allowDecimals={false} stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
                   <Tooltip {...tt} />
                   <Bar dataKey="foods" name="Foods" fill="#0891b2" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="highRisk" name="High-risk foods" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="highRisk" name="High-risk foods" fill="var(--high)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -33,12 +33,12 @@ function ScoreBar({ label, value, max = 10, color }) {
 
 // ── ACTION CATEGORY COLOUR ─────────────────────────────────────────────────────
 const CAT_COLORS = {
-  Immediate:   "#ef4444",
-  Frequency:   "#f59e0b",
-  Pairing:     "#3b82f6",
-  Portion:     "#a78bfa",
-  Hydration:   "#06b6d4",
-  "Dental Care": "#22c55e",
+  Immediate:   "var(--high)",
+  Frequency:   "var(--medium)",
+  Pairing:     "var(--mineral)",
+  Portion:     "#9584a3",
+  Hydration:   "#4f95a3",
+  "Dental Care": "var(--low)",
 };
 
 const INGREDIENT_CALORIE_WEIGHTS = {

@@ -173,10 +173,10 @@ export default function Coach() {
   };
   const nutrientRings = [
     { label: "Calories", value: kcal, max: ct.target, unit: "kcal", color: "var(--medium)", size: 112 },
-    { label: "Protein", value: protein, max: macroTargets.protein_g, unit: "g", color: "#3b82f6" },
-    { label: "Carbs", value: carbs, max: macroTargets.carbs_g, unit: "g", color: "#f59e0b" },
+    { label: "Protein", value: protein, max: macroTargets.protein_g, unit: "g", color: "var(--mineral)" },
+    { label: "Carbs", value: carbs, max: macroTargets.carbs_g, unit: "g", color: "var(--medium)" },
     { label: "Fat", value: fat, max: macroTargets.fat_g, unit: "g", color: "#a78bfa" },
-    { label: "Sugar", value: sugar, max: macroTargets.sugar_g, unit: "g", color: sugar > macroTargets.sugar_g ? "var(--high)" : "#22c55e" },
+    { label: "Sugar", value: sugar, max: macroTargets.sugar_g, unit: "g", color: sugar > macroTargets.sugar_g ? "var(--high)" : "var(--low)" },
     { label: "Calcium", value: calcium, max: TARGETS.calcium_mg, unit: "mg", color: "#22d3ee" },
     { label: "Fiber", value: fiber, max: macroTargets.fiber_g, unit: "g", color: "#86efac" },
   ];

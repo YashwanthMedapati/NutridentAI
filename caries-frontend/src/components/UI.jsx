@@ -115,9 +115,9 @@ export const Alert = ({ type = "error", children }) => (
 
 export const RiskBar = ({ score = 0, level }) => {
   const percentage = Math.min((Number(score || 0) / 10) * 100, 100);
-  let color = "#22c55e";
-  if (level === "Medium") color = "#f59e0b";
-  if (level === "High") color = "#ef4444";
+  let color = "var(--low)";
+  if (level === "Medium") color = "var(--medium)";
+  if (level === "High") color = "var(--high)";
 
   return (
     <div className="risk-mini-bar">

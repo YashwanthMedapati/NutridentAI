@@ -500,7 +500,7 @@ export default function Nutrition() {
                   <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                     {pieData.map((e) => (
-                      <Cell key={e.name} fill={e.name === "High" ? "#ef4444" : e.name === "Medium" ? "#f59e0b" : "#22c55e"} />
+                      <Cell key={e.name} fill={e.name === "High" ? "var(--high)" : e.name === "Medium" ? "var(--medium)" : "var(--low)"} />
                     ))}
                   </Pie>
                   <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} />
@@ -515,9 +515,9 @@ export default function Nutrition() {
               <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie data={macroPieData} dataKey="value" cx="50%" cy="50%" outerRadius={55} innerRadius={30} paddingAngle={3}>
-                    <Cell fill="#3b82f6" />
-                    <Cell fill="#f59e0b" />
-                    <Cell fill="#22c55e" />
+                    <Cell fill="var(--mineral)" />
+                    <Cell fill="var(--medium)" />
+                    <Cell fill="var(--low)" />
                   </Pie>
                   <Tooltip formatter={(v) => `${v} g`} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} />
                   <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
@@ -535,7 +535,7 @@ export default function Nutrition() {
                   <YAxis stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
                   <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} />
                   <Bar dataKey="value" name="Consumed" radius={[4, 4, 0, 0]}>
-                    {macroData.map((e, i) => <Cell key={i} fill={e.value > e.limit ? "#ef4444" : "#22c55e"} />)}
+                    {macroData.map((e, i) => <Cell key={i} fill={e.value > e.limit ? "var(--high)" : "var(--low)"} />)}
                   </Bar>
                   <Bar dataKey="limit" name="Limit" fill="var(--track)" radius={[4, 4, 0, 0]} />
                 </BarChart>
