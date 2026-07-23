@@ -87,13 +87,29 @@ The frontend now uses Vite instead of Create React App. Run `npm audit` from `ca
 - Create a second test user and confirm that user cannot see the first user's logs.
 - Confirm `/health` on the backend reports model/API readiness.
 
+## Redis Rate-Limit Check
+
+For one backend instance, the default in-memory limiter is fine. For multiple workers or replicas, set `REDIS_URL` so every instance shares the same counters.
+
+Local Redis smoke test with Docker:
+
+```powershell
+docker run --rm -d --name nutrident-redis-test -p 6379:6379 redis:7-alpine
+cd C:\Users\yashw\Desktop\NutriDent-AI\Caries
+$env:REDIS_URL="redis://127.0.0.1:6379/0"
+python -m unittest test_endpoints.TestEndpoints.test_rate_limit_triggers_for_food_risk
+docker stop nutrident-redis-test
+```
+
+In production, check backend logs at startup for `Rate limiter using Redis-backed storage`. If Redis is unavailable, the app falls back to in-memory limits and logs a warning; treat that warning as a deployment issue for multi-instance hosting.
+
 ## Preflight
 
 Run:
 
 ```bash
 cd Caries && python -m unittest test_core test_endpoints
-cd ../caries-frontend && npm test && npm run build && npm audit
+cd ../caries-frontend && npm test && npm run test:e2e && npm run build && npm audit
 ```
 
 `.github/workflows/ci.yml` runs the same backend/frontend suites plus the production build automatically on every push and pull request to `main` — check that it's green before deploying.

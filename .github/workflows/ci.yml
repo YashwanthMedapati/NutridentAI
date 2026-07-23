@@ -55,5 +55,11 @@ jobs:
       - name: Run frontend test suite
         run: npm test
 
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E smoke tests
+        run: npm run test:e2e
+
       - name: Build production bundle
         run: npm run build

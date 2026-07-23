@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { useCoach } from "../context/CoachContext";
 import { RiskBadge, ProbabilityBar, Alert, Spinner, Field } from "../components/UI";
@@ -68,6 +68,12 @@ export default function Assess() {
   const plan = useMemo(() => calculateCalories(form), [calculateCalories, form]);
   const prob = result?.patient_risk?.risk_probability || 0;
   const gaugeColor = value => value > 0.7 ? "#ef4444" : value > 0.4 ? "#f59e0b" : "#22c55e";
+  const modelConfidence = prob ? Math.max(prob, 1 - prob) : 0;
+  const confidenceLabel = modelConfidence >= 0.82
+    ? "High confidence: strong pattern match"
+    : modelConfidence >= 0.58
+      ? "Medium confidence: mixed diet/smoking signals"
+      : "Review needed: add more complete inputs";
   const riskBreakdownData = result?.patient_risk?.risk_breakdown
     ? Object.entries(result.patient_risk.risk_breakdown).map(([factor, value]) => ({ factor, value }))
     : [];
@@ -323,6 +329,21 @@ export default function Assess() {
                       </ul>
                     </div>
                   )}
+                </div>
+
+                <div className="result-card">
+                  <div className="result-card-head">
+                    <span className="result-card-label">Model Confidence</span>
+                    <Link className="explain-inline-link" to="/explain">Why this score?</Link>
+                  </div>
+                  <h3 className="confidence-title">{confidenceLabel}</h3>
+                  <div className="confidence-meter">
+                    <span style={{ width: `${Math.round(modelConfidence * 100)}%` }} />
+                  </div>
+                  <p className="fine-print">
+                    Confidence reflects how decisive the patient model is from your age, diet,
+                    smoking, minerals, and eating-frequency inputs.
+                  </p>
                 </div>
 
                 <div className="result-card center-card">

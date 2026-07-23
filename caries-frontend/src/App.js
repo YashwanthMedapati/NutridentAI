@@ -11,6 +11,7 @@ import Assess from "./pages/Assess";
 import Nutrition from "./pages/Nutrition";
 import Coach from "./pages/Coach";
 import BehaviorAnalytics from "./pages/BehaviorAnalytics";
+import Explainability from "./pages/Explainability";
 import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
 import { About, Tips, PreviousResults, Privacy } from "./pages/OtherPages";
@@ -34,6 +35,7 @@ export default function App() {
                   <Route path="/coach"     element={<Coach />} />
                   <Route path="/analytics" element={<BehaviorAnalytics />} />
                   <Route path="/charts"    element={<BehaviorAnalytics />} />
+                  <Route path="/explain"   element={<Explainability />} />
                   <Route path="/results"   element={<PreviousResults />} />
                   <Route path="/tips"      element={<Tips />} />
                   <Route path="/about"     element={<About />} />

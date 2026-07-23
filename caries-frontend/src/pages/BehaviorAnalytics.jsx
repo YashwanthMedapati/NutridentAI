@@ -55,6 +55,14 @@ function getFoodName(item, fallback = "Logged food") {
   return item.usda_match || item.food_name_entered || item.food_name || fallback;
 }
 
+function mealTimingBucket(item) {
+  const hour = item.timestamp ? new Date(item.timestamp).getHours() : 12;
+  if (hour < 11) return "Morning";
+  if (hour < 15) return "Midday";
+  if (hour < 20) return "Evening";
+  return "Late";
+}
+
 function buildStreak(dailyData) {
   let streak = 0;
   for (let index = dailyData.length - 1; index >= 0; index -= 1) {
@@ -124,6 +132,20 @@ export default function BehaviorAnalytics() {
       ? Number((weightPoints[weightPoints.length - 1].weight - weightPoints[0].weight).toFixed(1))
       : null;
 
+    const bestDay = foodDays.length
+      ? [...foodDays].sort((a, b) => (a.avgRisk + a.sugar / 50) - (b.avgRisk + b.sugar / 50))[0]
+      : null;
+    const worstDay = foodDays.length
+      ? [...foodDays].sort((a, b) => (b.avgRisk + b.sugar / 50) - (a.avgRisk + a.sugar / 50))[0]
+      : null;
+    const sugarWeightData = dailyData
+      .filter(day => day.sugar > 0 || day.weight)
+      .map(day => ({
+        label: day.label,
+        sugar: day.sugar,
+        weight: day.weight,
+      }));
+
     const mealMap = new Map();
     foodLog
       .filter(item => days.includes(dateKeyFor(item)))
@@ -163,6 +185,26 @@ export default function BehaviorAnalytics() {
       .sort((a, b) => b.risk - a.risk || b.sugar - a.sugar)
       .slice(0, 5);
 
+    const timingMap = new Map(["Morning", "Midday", "Evening", "Late"].map(bucket => [bucket, {
+      bucket,
+      foods: 0,
+      sugar: 0,
+      highRisk: 0,
+    }]));
+    foodLog
+      .filter(item => days.includes(dateKeyFor(item)))
+      .forEach(item => {
+        const bucket = mealTimingBucket(item);
+        const current = timingMap.get(bucket);
+        current.foods += 1;
+        current.sugar += numberOrZero(item.nutrition?.sugar_g);
+        if (item.risk?.food_risk_level === "High") current.highRisk += 1;
+      });
+    const timingData = Array.from(timingMap.values()).map(item => ({
+      ...item,
+      sugar: Math.round(item.sugar),
+    }));
+
     const lateSugarEvents = dailyData.reduce((sum, day) => sum + day.lateSugar, 0);
     const highRiskEvents = dailyData.reduce((sum, day) => sum + day.highRiskFoods, 0);
     const streak = buildStreak(dailyData);
@@ -192,6 +234,10 @@ export default function BehaviorAnalytics() {
       weightDelta,
       mealData,
       topRiskFoods,
+      timingData,
+      sugarWeightData,
+      bestDay,
+      worstDay,
       lateSugarEvents,
       highRiskEvents,
       streak,
@@ -233,6 +279,16 @@ export default function BehaviorAnalytics() {
             <MetricCard label="Current Streak" value={`${analytics.streak} days`} detail="Consecutive days with food logs" />
             <MetricCard label="Avg Calories" value={`${analytics.avgCalories || 0}`} detail="Per logged day" />
             <MetricCard label="Avg Oral Risk" value={`${analytics.avgRisk || 0}/10`} detail={`${analytics.highRiskEvents} high-risk items`} />
+            <MetricCard
+              label="Best Day"
+              value={analytics.bestDay ? analytics.bestDay.label : "Need logs"}
+              detail={analytics.bestDay ? `${analytics.bestDay.calories} kcal, ${analytics.bestDay.sugar}g sugar` : "Lowest sugar/risk day"}
+            />
+            <MetricCard
+              label="Worst Day"
+              value={analytics.worstDay ? analytics.worstDay.label : "Need logs"}
+              detail={analytics.worstDay ? `${analytics.worstDay.avgRisk}/10 risk, ${analytics.worstDay.sugar}g sugar` : "Highest sugar/risk day"}
+            />
             <MetricCard
               label="Weight Change"
               value={analytics.weightDelta === null ? "Need 2 logs" : `${analytics.weightDelta > 0 ? "+" : ""}${analytics.weightDelta} kg`}
@@ -299,6 +355,25 @@ export default function BehaviorAnalytics() {
             </div>
 
             <div className="result-card">
+              <div className="result-card-head"><span className="result-card-label">Sugar vs Weight</span></div>
+              {analytics.sugarWeightData.length ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={analytics.sugarWeightData} margin={{ top: 4, right: 10, left: -16, bottom: 0 }}>
+                    <CartesianGrid stroke="var(--border)" vertical={false} />
+                    <XAxis dataKey="label" stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
+                    <YAxis yAxisId="left" stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
+                    <YAxis yAxisId="right" orientation="right" stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
+                    <Tooltip {...tt} />
+                    <Line yAxisId="left" type="monotone" dataKey="sugar" name="Sugar (g)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line yAxisId="right" type="monotone" dataKey="weight" name="Weight (kg)" stroke="#7c3aed" strokeWidth={2} connectNulls dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="analytics-muted">Log sugar-containing foods and weight to compare trends.</p>
+              )}
+            </div>
+
+            <div className="result-card">
               <div className="result-card-head"><span className="result-card-label">Meal Category Pattern</span></div>
               {analytics.mealData.length ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -314,6 +389,20 @@ export default function BehaviorAnalytics() {
               ) : (
                 <p className="analytics-muted">Add logged foods with meal categories to see this pattern.</p>
               )}
+            </div>
+
+            <div className="result-card">
+              <div className="result-card-head"><span className="result-card-label">Meal Timing Pattern</span></div>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={analytics.timingData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="bucket" stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
+                  <YAxis allowDecimals={false} stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 11 }} />
+                  <Tooltip {...tt} />
+                  <Bar dataKey="foods" name="Foods" fill="#0891b2" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="highRisk" name="High-risk foods" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
 
             <div className="result-card">

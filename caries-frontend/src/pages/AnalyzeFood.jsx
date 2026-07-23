@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { RiskBadge, NutritionGrid, MacroAnalysis, Alert, Spinner } from "../components/UI";
 import { Html5Qrcode } from "html5-qrcode";
@@ -73,6 +74,89 @@ function ingredientCalorieBreakdown(ingredients = [], nutrition) {
   }));
 }
 
+function foodKindFor(name = "") {
+  const lower = name.toLowerCase();
+  if (lower.includes("pizza")) return "pizza";
+  if (/(rice|pasta|noodle|spaghetti|oatmeal|cereal|bowl)/.test(lower)) return "bowl";
+  if (/(soda|juice|milk|coffee|tea|smoothie|shake|drink)/.test(lower)) return "drink";
+  if (/(sandwich|burger|wrap|taco|burrito)/.test(lower)) return "handheld";
+  return "generic";
+}
+
+const GUIDED_DEFAULTS = {
+  pizza: {
+    slices: "2",
+    pizzaSize: "medium",
+    crust: "regular",
+    cheese: "regular cheese",
+    toppings: ["cheese", "tomato sauce"],
+  },
+  bowl: {
+    bowlSize: "medium bowl",
+    density: "standard",
+    toppings: [],
+  },
+  drink: {
+    volumeMl: "355",
+    sugarLevel: "regular",
+    toppings: [],
+  },
+  handheld: {
+    count: "1",
+    size: "standard",
+    toppings: [],
+  },
+  generic: {
+    serving: "1",
+    size: "medium",
+    toppings: [],
+  },
+};
+
+const TOPPING_OPTIONS = {
+  pizza: ["cheese", "tomato sauce", "salami", "pepperoni", "olives", "tomatoes", "peppers", "mushrooms", "extra cheese"],
+  bowl: ["rice", "pasta", "sauce", "cheese", "chicken", "egg", "vegetables", "nuts", "oil"],
+  drink: ["sugar", "milk", "cream", "syrup", "protein powder", "fruit"],
+  handheld: ["cheese", "sauce", "meat", "vegetables", "egg", "extra spread"],
+  generic: ["sauce", "cheese", "meat", "vegetables", "oil", "sugar"],
+};
+
+function guidedEstimate(kind, answers) {
+  if (kind === "pizza") {
+    const baseBySize = { small: 95, medium: 125, large: 155 };
+    const crustMultiplier = { thin: 0.82, regular: 1, thick: 1.22 };
+    const cheeseMultiplier = { "light cheese": 0.94, "regular cheese": 1, "extra cheese": 1.1 };
+    const slices = Math.max(1, Number(answers.slices || 1));
+    const grams = Math.round(
+      slices *
+      (baseBySize[answers.pizzaSize] || baseBySize.medium) *
+      (crustMultiplier[answers.crust] || 1) *
+      (cheeseMultiplier[answers.cheese] || 1)
+    );
+    return { grams, label: `${slices} ${answers.pizzaSize || "medium"} ${answers.crust || "regular"} pizza slice${slices === 1 ? "" : "s"}` };
+  }
+  if (kind === "bowl") {
+    const base = { "small bowl": 180, "medium bowl": 280, "large bowl": 420 };
+    const density = { light: 0.85, standard: 1, dense: 1.18 };
+    const grams = Math.round((base[answers.bowlSize] || 280) * (density[answers.density] || 1));
+    return { grams, label: answers.bowlSize || "medium bowl" };
+  }
+  if (kind === "drink") {
+    const grams = Math.max(30, Math.round(Number(answers.volumeMl || 355)));
+    return { grams, label: `${grams} ml drink` };
+  }
+  if (kind === "handheld") {
+    const base = { small: 150, standard: 220, large: 320 };
+    const count = Math.max(1, Number(answers.count || 1));
+    const grams = Math.round(count * (base[answers.size] || 220));
+    return { grams, label: `${count} ${answers.size || "standard"} item${count === 1 ? "" : "s"}` };
+  }
+  const base = { small: 100, medium: 150, large: 250 };
+  const serving = Math.max(0.25, Number(answers.serving || 1));
+  const grams = Math.round(serving * (base[answers.size] || 150));
+  return { grams, label: `${serving} ${answers.size || "medium"} serving${serving === 1 ? "" : "s"}` };
+}
+
 export default function AnalyzeFood() {
   const { addToFoodLog } = useApp();
 
@@ -91,6 +175,7 @@ export default function AnalyzeFood() {
   const [mealCategory, setMealCategory] = useState("Meal");
   const [correctedFoodName, setCorrectedFoodName] = useState("");
   const [userIngredients, setUserIngredients] = useState("");
+  const [guidedAnswers, setGuidedAnswers] = useState(GUIDED_DEFAULTS.generic);
 
   // Portion state: starts from AI estimate, user can override
   const [portionG, setPortionG]   = useState(null);
@@ -240,12 +325,18 @@ export default function AnalyzeFood() {
       data?.ingredients ||
       ""
     );
+    const nextKind = foodKindFor(data?.detected_food || data?.product_name || data?.food_name_entered || searchText || "");
+    const detectedIngredients = data?.image_insights?.detected_ingredients?.map(item => item.name) || [];
+    setGuidedAnswers({
+      ...GUIDED_DEFAULTS[nextKind],
+      toppings: detectedIngredients.length ? detectedIngredients : GUIDED_DEFAULTS[nextKind].toppings,
+    });
   };
 
   // ── RE-FETCH WITH NEW PORTION ─────────────────────────────────────────────────
-  const recalcWithPortion = async (newG) => {
+  const recalcWithPortion = async (newG, foodNameOverride) => {
     if (!rawResult) return;
-    const foodName = correctedFoodName || rawResult.food_name_entered || searchText || rawResult.detected_food || "";
+    const foodName = foodNameOverride || correctedFoodName || rawResult.food_name_entered || searchText || rawResult.detected_food || "";
     try {
       setPortionError(null);
       const path = rawResult.barcode ? "/barcode-food-risk" : "/food-risk";
@@ -276,6 +367,34 @@ export default function AnalyzeFood() {
   const applyCorrections = () => {
     setPortionEdited(true);
     recalcWithPortion(portionG);
+  };
+
+  const updateGuidedAnswer = (key, value) => {
+    setGuidedAnswers(prev => ({ ...prev, [key]: value }));
+  };
+
+  const toggleGuidedTopping = (name) => {
+    setGuidedAnswers(prev => {
+      const current = new Set(prev.toppings || []);
+      if (current.has(name)) current.delete(name);
+      else current.add(name);
+      return { ...prev, toppings: Array.from(current) };
+    });
+  };
+
+  const applyGuidedEstimate = () => {
+    const baseName = correctedFoodName || result?.detected_food || result?.food_name_entered || searchText || "";
+    const kind = foodKindFor(baseName);
+    const estimate = guidedEstimate(kind, guidedAnswers);
+    const selectedIngredients = (guidedAnswers.toppings || []).filter(Boolean);
+    const enrichedName = selectedIngredients.length
+      ? `${baseName} with ${selectedIngredients.join(", ")}`
+      : baseName;
+    setCorrectedFoodName(enrichedName);
+    setUserIngredients(selectedIngredients.join(", "));
+    setPortionG(estimate.grams);
+    setPortionEdited(true);
+    recalcWithPortion(estimate.grams, enrichedName);
   };
 
   // ── ANALYZE IMAGE ─────────────────────────────────────────────────────────────
@@ -326,6 +445,8 @@ export default function AnalyzeFood() {
   const imageInsights = result?.image_insights;
   const analysisQuality = result?.analysis_quality;
   const calorieBreakdown = result?.calorie_breakdown;
+  const guidedKind = foodKindFor(correctedFoodName || result?.detected_food || result?.food_name_entered || searchText);
+  const guidedEstimatePreview = guidedEstimate(guidedKind, guidedAnswers);
   const visibleIngredients = userIngredients
     ? userIngredients.split(",").map(name => ({ name: name.trim(), confidence: "User" })).filter(item => item.name)
     : imageInsights?.detected_ingredients || [];
@@ -547,6 +668,7 @@ export default function AnalyzeFood() {
                 <span>{Math.round((analysisQuality.confidence_score || 0) * 100)}% score</span>
                 <span>{analysisQuality.source}</span>
                 {analysisQuality.requires_user_review && <strong>Review before logging</strong>}
+                <Link className="explain-inline-link" to="/explain">Why this score?</Link>
               </div>
             </div>
           )}
@@ -634,6 +756,172 @@ export default function AnalyzeFood() {
             <div className="correction-actions">
               <button className="btn-primary" onClick={applyCorrections}>Apply Corrections</button>
               <span>Nutrition and risk recalculate from food name and portion weight.</span>
+            </div>
+          </div>
+
+          <div className="guided-confirm-card">
+            <div className="guided-confirm-head">
+              <div>
+                <span className="micro-label">Guided Portion Check</span>
+                <h3>Answer a few food-specific questions before logging</h3>
+              </div>
+              <strong>{guidedEstimatePreview.grams} g estimate</strong>
+            </div>
+
+            {guidedKind === "pizza" && (
+              <div className="guided-grid">
+                <label className="field-label">
+                  Slices eaten
+                  <input
+                    type="number"
+                    min="1"
+                    max="12"
+                    className="search-big-input"
+                    value={guidedAnswers.slices || "2"}
+                    onChange={e => updateGuidedAnswer("slices", e.target.value)}
+                  />
+                </label>
+                <label className="field-label">
+                  Pizza size
+                  <select className="search-big-input" value={guidedAnswers.pizzaSize || "medium"} onChange={e => updateGuidedAnswer("pizzaSize", e.target.value)}>
+                    <option value="small">Small</option>
+                    <option value="medium">Medium</option>
+                    <option value="large">Large</option>
+                  </select>
+                </label>
+                <label className="field-label">
+                  Crust
+                  <select className="search-big-input" value={guidedAnswers.crust || "regular"} onChange={e => updateGuidedAnswer("crust", e.target.value)}>
+                    <option value="thin">Thin</option>
+                    <option value="regular">Regular</option>
+                    <option value="thick">Thick</option>
+                  </select>
+                </label>
+                <label className="field-label">
+                  Cheese
+                  <select className="search-big-input" value={guidedAnswers.cheese || "regular cheese"} onChange={e => updateGuidedAnswer("cheese", e.target.value)}>
+                    <option value="light cheese">Light cheese</option>
+                    <option value="regular cheese">Regular cheese</option>
+                    <option value="extra cheese">Extra cheese</option>
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {guidedKind === "bowl" && (
+              <div className="guided-grid">
+                <label className="field-label">
+                  Bowl size
+                  <select className="search-big-input" value={guidedAnswers.bowlSize || "medium bowl"} onChange={e => updateGuidedAnswer("bowlSize", e.target.value)}>
+                    <option value="small bowl">Small bowl</option>
+                    <option value="medium bowl">Medium bowl</option>
+                    <option value="large bowl">Large bowl</option>
+                  </select>
+                </label>
+                <label className="field-label">
+                  Density
+                  <select className="search-big-input" value={guidedAnswers.density || "standard"} onChange={e => updateGuidedAnswer("density", e.target.value)}>
+                    <option value="light">Light / mostly vegetables</option>
+                    <option value="standard">Standard</option>
+                    <option value="dense">Dense / oily / creamy</option>
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {guidedKind === "drink" && (
+              <div className="guided-grid">
+                <label className="field-label">
+                  Volume
+                  <select className="search-big-input" value={guidedAnswers.volumeMl || "355"} onChange={e => updateGuidedAnswer("volumeMl", e.target.value)}>
+                    <option value="240">240 ml cup</option>
+                    <option value="355">355 ml can</option>
+                    <option value="500">500 ml bottle</option>
+                    <option value="700">700 ml large drink</option>
+                  </select>
+                </label>
+                <label className="field-label">
+                  Sugar level
+                  <select className="search-big-input" value={guidedAnswers.sugarLevel || "regular"} onChange={e => updateGuidedAnswer("sugarLevel", e.target.value)}>
+                    <option value="unsweetened">Unsweetened</option>
+                    <option value="regular">Regular</option>
+                    <option value="extra sweet">Extra sweet / syrup</option>
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {guidedKind === "handheld" && (
+              <div className="guided-grid">
+                <label className="field-label">
+                  Count
+                  <input
+                    type="number"
+                    min="1"
+                    max="6"
+                    className="search-big-input"
+                    value={guidedAnswers.count || "1"}
+                    onChange={e => updateGuidedAnswer("count", e.target.value)}
+                  />
+                </label>
+                <label className="field-label">
+                  Size
+                  <select className="search-big-input" value={guidedAnswers.size || "standard"} onChange={e => updateGuidedAnswer("size", e.target.value)}>
+                    <option value="small">Small</option>
+                    <option value="standard">Standard</option>
+                    <option value="large">Large</option>
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {guidedKind === "generic" && (
+              <div className="guided-grid">
+                <label className="field-label">
+                  Servings eaten
+                  <input
+                    type="number"
+                    min="0.25"
+                    step="0.25"
+                    max="8"
+                    className="search-big-input"
+                    value={guidedAnswers.serving || "1"}
+                    onChange={e => updateGuidedAnswer("serving", e.target.value)}
+                  />
+                </label>
+                <label className="field-label">
+                  Serving size
+                  <select className="search-big-input" value={guidedAnswers.size || "medium"} onChange={e => updateGuidedAnswer("size", e.target.value)}>
+                    <option value="small">Small</option>
+                    <option value="medium">Medium</option>
+                    <option value="large">Large</option>
+                  </select>
+                </label>
+              </div>
+            )}
+
+            <div className="guided-toppings">
+              <span className="micro-label">Ingredients and extras included in analysis notes</span>
+              <div className="guided-chip-row">
+                {(TOPPING_OPTIONS[guidedKind] || TOPPING_OPTIONS.generic).map(name => (
+                  <button
+                    key={name}
+                    type="button"
+                    className={`guided-chip ${(guidedAnswers.toppings || []).includes(name) ? "active" : ""}`}
+                    onClick={() => toggleGuidedTopping(name)}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="guided-actions">
+              <p>
+                Preview: {guidedEstimatePreview.label}. This recalculates calories from the matched food,
+                selected portion, and enriched food description before logging.
+              </p>
+              <button className="btn-primary" onClick={applyGuidedEstimate}>Use Guided Estimate</button>
             </div>
           </div>
 

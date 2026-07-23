@@ -352,7 +352,7 @@ export function PreviousResults() {
           </div>
         ))}
       </div>
-      <p className="session-note">Note: Results are stored in-session only and will be cleared on page refresh.</p>
+      <p className="session-note">Note: Results are saved in this browser unless you delete NutriDent data from Settings or clear site data.</p>
     </div>
   );
 }
@@ -368,8 +368,8 @@ export function Privacy() {
       <div className="about-grid">
         <div className="about-section">
           <h2 className="about-heading">Local Data Storage</h2>
-          <p>Food logs, weight logs, profile values, and previous results are currently stored in this browser using local storage. They are not synced to a cloud account yet.</p>
-          <p>If you clear browser data or use a different device, this local history may not be available.</p>
+          <p>Food logs, weight logs, profile values, coach targets, and previous results are stored in this browser using local storage by default.</p>
+          <p>If Supabase is configured and you sign in, food and weight logs can sync to your account. Local browser data can still remain on the device until you delete it.</p>
         </div>
 
         <div className="about-section">
@@ -380,13 +380,14 @@ export function Privacy() {
 
         <div className="about-section">
           <h2 className="about-heading">Medical Disclaimer</h2>
-          <p>NutriDent AI is educational and research-oriented. It is not a clinical diagnosis, medical device, or replacement for a dentist, physician, or registered dietitian.</p>
-          <p>Use the results as a coaching signal and discuss dental or nutrition concerns with a qualified professional.</p>
+          <p>NutriDent AI is educational and research-oriented. It is not a clinical diagnosis, medical device, nutrition prescription, or replacement for a dentist, physician, or registered dietitian.</p>
+          <p>Vision, portion, calorie, and risk estimates can be wrong. Review detected ingredients and portion weight before logging food or making decisions from the result.</p>
         </div>
 
         <div className="about-section">
-          <h2 className="about-heading">Production Recommendation</h2>
-          <p>Before enabling real accounts or cloud sync, deploy with authenticated database access, row-level user isolation, HTTPS-only API calls, and a clear data deletion/export flow.</p>
+          <h2 className="about-heading">Export And Delete</h2>
+          <p>Use Settings to export a JSON copy of your NutriDent data, import a previous export, or delete local app data from the current browser.</p>
+          <p>For production cloud data, keep Supabase Row Level Security enabled and provide account-level deletion for server-stored records.</p>
         </div>
       </div>
     </div>

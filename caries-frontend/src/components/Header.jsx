@@ -14,6 +14,7 @@ export default function Header() {
     { to: "/food", label: "Analyze Food" },
     { to: "/nutrition", label: "Daily Log" },
     { to: "/analytics", label: "Analytics" },
+    { to: "/explain", label: "Why This Score" },
     { to: "/coach", label: "Coach" },
     { to: "/assess", label: "Risk Assessment" },
   ];
