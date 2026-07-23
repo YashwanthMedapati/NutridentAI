@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: nutrident-backend
+    runtime: python
+    plan: free
+    rootDir: Caries
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: USDA_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: MODEL_VERSION
+        value: production
+      - key: MAX_IMAGE_BYTES
+        value: "8388608"
