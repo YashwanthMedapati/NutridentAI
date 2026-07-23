@@ -27,6 +27,7 @@ test("renders core navigation for logs, settings, account, and privacy", () => {
   render(<App />);
   expect(screen.getAllByText(/Daily Log/i).length).toBeGreaterThan(0);
   expect(screen.getAllByText(/Analytics/i).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/Why This Score/i).length).toBeGreaterThan(0);
   expect(screen.getAllByText(/Settings/i).length).toBeGreaterThan(0);
   expect(screen.getAllByText(/Sign In/i).length).toBeGreaterThan(0);
   expect(screen.getAllByText(/Privacy/i).length).toBeGreaterThan(0);

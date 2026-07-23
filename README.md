@@ -72,6 +72,94 @@ Useful endpoints:
 - `POST /image-food-risk`
 - `POST /barcode-food-risk`
 
+## API Contract Examples
+
+Patient-only risk assessment:
+
+```http
+POST /predict
+Content-Type: application/json
+```
+
+```json
+{
+  "RIDAGEYR": 28,
+  "RIAGENDR": 1,
+  "DR1TSUGR": 42,
+  "DR1TCARB": 240,
+  "DR1TTFAT": 70,
+  "DR1TKCAL": 2200,
+  "DR1TCALC": 900,
+  "DR1TPHOS": 800,
+  "DR1TSFAT": 20,
+  "SMD650": 0,
+  "SMQ040": 3,
+  "SMD030": 0,
+  "DBD895": 3,
+  "DBD900": 1,
+  "DBD905": 2,
+  "DBD910": 1
+}
+```
+
+```json
+{
+  "prediction": "Low Risk",
+  "risk_probability": 0.31,
+  "why": ["Low smoking-related risk"],
+  "risk_breakdown": {
+    "Sugar": 0.5,
+    "Carbs": 0.5,
+    "Smoking": 0,
+    "Calcium": 0.2,
+    "Fast Food": 0
+  }
+}
+```
+
+Food search and risk:
+
+```http
+POST /food-risk
+Content-Type: application/json
+```
+
+```json
+{
+  "food_name": "banana",
+  "portion_g": 118
+}
+```
+
+```json
+{
+  "food_name_entered": "banana",
+  "usda_match": "Bananas, raw",
+  "nutrition": {
+    "energy_kcal": 105,
+    "sugar_g": 14,
+    "carbs_g": 27
+  },
+  "portion_estimate": {
+    "g": 118,
+    "label": "User-specified (118g)",
+    "confidence": "User"
+  },
+  "analysis_quality": {
+    "confidence": "High",
+    "confidence_score": 0.9,
+    "requires_user_review": false
+  },
+  "risk": {
+    "food_risk_score": 3,
+    "food_risk_level": "Low",
+    "reasons": ["Moderate natural sugar exposure"]
+  }
+}
+```
+
+Image uploads use `multipart/form-data` with an `image` file and optional `portion_g`. Barcode lookup accepts `{ "barcode": "5000112637922" }`. Non-2xx responses use a JSON `detail` field so callers can rely on HTTP status codes.
+
 ## Frontend Setup
 
 Create `caries-frontend/.env.development` for local development:
@@ -135,11 +223,12 @@ cd C:\Users\yashw\Desktop\NutriDent-AI\Caries
 python -m unittest test_core test_endpoints
 cd ..\caries-frontend
 npm test
+npm run test:e2e
 npm run build
 npm audit
 ```
 
-Continuous integration: `.github/workflows/ci.yml` runs the backend and frontend suites (and the frontend production build) on every push and pull request to `main`.
+Continuous integration: `.github/workflows/ci.yml` runs backend tests/lint, frontend tests/lint, Playwright smoke tests, and the frontend production build on every push and pull request to `main`.
 
 ## Supabase Setup
 
@@ -159,13 +248,13 @@ NutriDent AI stores user-entered form data, assessment history, food logs, coach
 
 Do not treat localStorage as secure storage for sensitive medical records. Clear browser site data to remove saved local data.
 
-The Daily Log can export food and weight history to CSV from the browser. Uploaded food photos are analyzed through the backend and Google Vision API when image detection is used.
+The Daily Log can export food and weight history to CSV from the browser. Settings can export/import/delete the broader local app data as JSON. Uploaded food photos are analyzed through the backend and Google Vision API when image detection is used.
 
 ## Validation And Safety
 
 The backend validates plausible ranges for age, nutrients, smoking fields, eating-frequency fields, portions, food names, and barcodes. The frontend also validates assessment inputs before submitting.
 
-This project is educational and research-oriented. It is not a clinical dental diagnosis or medical advice. Risk scores depend on self-reported inputs and population-level model patterns.
+This project is educational and research-oriented. It is not a clinical dental diagnosis, nutrition prescription, or medical advice. Risk scores depend on self-reported inputs, portion estimates, external food databases, and population-level model patterns. Users should review detected ingredients and portion weights before logging food.
 
 ## Author
 

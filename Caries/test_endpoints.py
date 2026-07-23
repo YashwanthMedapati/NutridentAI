@@ -1,12 +1,18 @@
 import sys
 import unittest
+import warnings
 from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fastapi.testclient import TestClient
+warnings.filterwarnings(
+    "ignore",
+    message="Using `httpx` with `starlette.testclient` is deprecated.*",
+    category=Warning,
+)
+from fastapi.testclient import TestClient  # noqa: E402
 
-import main
+import main  # noqa: E402
 
 PATIENT_PAYLOAD = {
     "RIDAGEYR": 32, "RIAGENDR": 1,
