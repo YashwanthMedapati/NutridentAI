@@ -105,7 +105,7 @@ export default function Auth() {
         <div className="auth-shell">
           <section className="auth-brand-panel">
             <img className="auth-logo theme-logo-dark" src="/assets/nutrident-logo.png" alt="NutriDent AI" />
-            <img className="auth-logo theme-logo-light" src="/assets/nutrident-logo-light.png" alt="NutriDent AI" />
+            <img className="auth-logo theme-logo-light" src="/assets/nutrident-logo-light-glow.png" alt="NutriDent AI" />
             <h1>Cloud accounts are waiting for Supabase.</h1>
             <p>Local tracking still works. Add the frontend Supabase environment values before deploying account sync.</p>
           </section>
@@ -125,7 +125,7 @@ export default function Auth() {
         <div className="auth-shell">
           <section className="auth-brand-panel">
             <img className="auth-logo theme-logo-dark" src="/assets/nutrident-logo.png" alt="NutriDent AI" />
-            <img className="auth-logo theme-logo-light" src="/assets/nutrident-logo-light.png" alt="NutriDent AI" />
+            <img className="auth-logo theme-logo-light" src="/assets/nutrident-logo-light-glow.png" alt="NutriDent AI" />
             <h1>Your NutriDent account is active.</h1>
             <p>Food logs, weight entries, and nutrition progress can sync while this session is signed in.</p>
           </section>
@@ -155,7 +155,7 @@ export default function Auth() {
       <div className="auth-shell">
         <section className="auth-brand-panel">
           <img className="auth-logo theme-logo-dark" src="/assets/nutrident-logo.png" alt="NutriDent AI" />
-          <img className="auth-logo theme-logo-light" src="/assets/nutrident-logo-light.png" alt="NutriDent AI" />
+          <img className="auth-logo theme-logo-light" src="/assets/nutrident-logo-light-glow.png" alt="NutriDent AI" />
           <span className="auth-product-label">Private nutrition and dental risk tracking</span>
           <h1>{isSignup ? "Create your secure NutriDent account." : isReset ? "Reset your password safely." : "Welcome back to NutriDent."}</h1>
           <p>

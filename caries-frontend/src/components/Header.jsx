@@ -7,7 +7,7 @@ export default function Header() {
   const { dark, toggle } = useTheme();
   const { user, isSupabaseConfigured } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const logoSrc = dark ? "/assets/nutrident-logo.png" : "/assets/nutrident-logo-light.png";
+  const logoSrc = dark ? "/assets/nutrident-logo.png" : "/assets/nutrident-logo-light-glow.png";
 
   const primaryLinks = [
     { to: "/", label: "Home", end: true },

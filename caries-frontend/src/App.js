@@ -48,7 +48,7 @@ export default function App() {
                 <div className="footer-inner">
                   <span className="footer-brand-mark">
                     <img className="footer-logo theme-logo-dark" src="/assets/nutrident-logo.png" alt="NutriDent AI" />
-                    <img className="footer-logo theme-logo-light" src="/assets/nutrident-logo-light.png" alt="NutriDent AI" />
+                    <img className="footer-logo theme-logo-light" src="/assets/nutrident-logo-light-glow.png" alt="NutriDent AI" />
                   </span>
                   <span>For educational and research use only / Not a substitute for clinical dental diagnosis</span>
                 </div>

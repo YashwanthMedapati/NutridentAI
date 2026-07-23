@@ -17,9 +17,9 @@ function confidenceLabel(score) {
 }
 
 function riskColor(value) {
-  if (value >= 0.8) return "#ef4444";
-  if (value >= 0.5) return "#f59e0b";
-  return "#22c55e";
+  if (value >= 0.8) return "var(--high)";
+  if (value >= 0.5) return "var(--medium)";
+  return "var(--low)";
 }
 
 function normalizeBreakdown(result) {
@@ -86,7 +86,7 @@ export default function Explainability() {
           <p className="page-sub">Run a food scan or risk assessment to see the evidence behind the latest result.</p>
         </div>
         <div className="empty-state">
-          <div className="empty-icon">Explain</div>
+          <div className="empty-icon">🔎</div>
           <h3>No analysis to explain yet</h3>
           <p>The explainability view uses your latest food scan or assessment result.</p>
           <div className="empty-actions">

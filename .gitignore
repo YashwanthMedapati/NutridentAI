@@ -25,3 +25,6 @@ build/
 # Logs
 npm-debug.log*
 *.log
+
+# Claude Code local session settings (machine/session-specific)
+.claude/settings.local.json

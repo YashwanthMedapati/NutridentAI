@@ -88,7 +88,7 @@ export function Charts() {
                   <Tooltip {...tt} />
                   <Bar dataKey="score" name="Risk Score" radius={[4, 4, 0, 0]}>
                     {foodRiskBar.map((e, i) => (
-                      <Cell key={i} fill={e.level === "High" ? "#ef4444" : e.level === "Medium" ? "#f59e0b" : "#22c55e"} />
+                      <Cell key={i} fill={e.level === "High" ? "var(--high)" : e.level === "Medium" ? "var(--medium)" : "var(--low)"} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -105,7 +105,7 @@ export function Charts() {
                   <Pie data={pieRisk} dataKey="value" cx="50%" cy="50%" outerRadius={70}
                     label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`}>
                     {pieRisk.map(e => (
-                      <Cell key={e.name} fill={e.name === "High" ? "#ef4444" : e.name === "Medium" ? "#f59e0b" : "#22c55e"} />
+                      <Cell key={e.name} fill={e.name === "High" ? "var(--high)" : e.name === "Medium" ? "var(--medium)" : "var(--low)"} />
                     ))}
                   </Pie>
                   <Tooltip {...tt} />
@@ -121,7 +121,7 @@ export function Charts() {
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie data={macroPie} dataKey="value" cx="50%" cy="50%" outerRadius={60} innerRadius={32} paddingAngle={3}>
-                    <Cell fill="#3b82f6" /><Cell fill="#f59e0b" /><Cell fill="#22c55e" />
+                    <Cell fill="var(--mineral)" /><Cell fill="var(--medium)" /><Cell fill="var(--low)" />
                   </Pie>
                   <Tooltip formatter={v => `${v} g`} {...tt} />
                   <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
@@ -139,7 +139,7 @@ export function Charts() {
                 <YAxis stroke="var(--text3)" tick={{ fill: "var(--text2)", fontSize: 12 }} />
                 <Tooltip {...tt} />
                 <Bar dataKey="value" name="Consumed" radius={[4, 4, 0, 0]}>
-                  {macroBar.map((e, i) => <Cell key={i} fill={e.value > e.limit ? "#ef4444" : "#22c55e"} />)}
+                  {macroBar.map((e, i) => <Cell key={i} fill={e.value > e.limit ? "var(--high)" : "var(--low)"} />)}
                 </Bar>
                 <Bar dataKey="limit" name="Limit" fill="var(--track)" radius={[4, 4, 0, 0]} />
               </BarChart>

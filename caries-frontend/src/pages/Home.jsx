@@ -8,7 +8,7 @@ export default function Home() {
   const navigate = useNavigate();
   const { dark } = useTheme();
   const { result, foodLog } = useApp();
-  const logoSrc = dark ? "/assets/nutrident-logo.png" : "/assets/nutrident-logo-light.png";
+  const logoSrc = dark ? "/assets/nutrident-logo.png" : "/assets/nutrident-logo-light-glow.png";
 
   const totalCals = foodLog.reduce((sum, item) => sum + (item.nutrition?.energy_kcal || 0), 0);
   const avgRisk = foodLog.length

@@ -67,7 +67,7 @@ export default function Assess() {
 
   const plan = useMemo(() => calculateCalories(form), [calculateCalories, form]);
   const prob = result?.patient_risk?.risk_probability || 0;
-  const gaugeColor = value => value > 0.7 ? "#ef4444" : value > 0.4 ? "#f59e0b" : "#22c55e";
+  const gaugeColor = value => value > 0.7 ? "var(--high)" : value > 0.4 ? "var(--medium)" : "var(--low)";
   const modelConfidence = prob ? Math.max(prob, 1 - prob) : 0;
   const confidenceLabel = modelConfidence >= 0.82
     ? "High confidence: strong pattern match"
@@ -391,7 +391,7 @@ export default function Assess() {
                       <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} />
                       <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                         {riskBreakdownData.map((entry, index) => (
-                          <Cell key={index} fill={entry.value >= 0.8 ? "#ef4444" : entry.value >= 0.5 ? "#f59e0b" : "#22c55e"} />
+                          <Cell key={index} fill={entry.value >= 0.8 ? "var(--high)" : entry.value >= 0.5 ? "var(--medium)" : "var(--low)"} />
                         ))}
                       </Bar>
                     </BarChart>
