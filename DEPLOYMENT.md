@@ -1,5 +1,27 @@
 # NutriDent AI Deployment Checklist
 
+## Quickstart: Vercel (frontend) + Render (backend), both free
+
+This repo includes ready-made config for this exact combo:
+
+- [`render.yaml`](../render.yaml) — a Render Blueprint that deploys the FastAPI backend from `Caries/` with the right build/start commands and a `/health` check.
+- [`caries-frontend/vercel.json`](../caries-frontend/vercel.json) — SPA rewrites so client-side routes like `/food` and `/nutrition` survive a page refresh.
+
+Deploy order matters because each side needs the other's URL:
+
+1. **Backend first, on Render.** New → Blueprint → connect this GitHub repo → Render reads `render.yaml` automatically. It'll ask you to fill in `USDA_API_KEY`, `GOOGLE_API_KEY`, and `CORS_ORIGINS` (leave `CORS_ORIGINS` blank for now, come back to it in step 3). Deploy, then copy the resulting URL (`https://nutrident-backend-XXXX.onrender.com`).
+2. **Frontend next, on Vercel.** New Project → import this repo → set **Root Directory** to `caries-frontend` (the one field Vercel can't infer for a monorepo) → it auto-detects Vite. Add these env vars before deploying:
+   ```env
+   VITE_API_BASE_URL=https://nutrident-backend-XXXX.onrender.com
+   VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+   VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_or_anon_key
+   ```
+   (Supabase vars are optional — omit them and the app falls back to local-storage-only logging.) Deploy, copy the resulting URL (`https://your-project.vercel.app`).
+3. **Back to Render**, set `CORS_ORIGINS` to that Vercel URL (comma-separate if you also want your local dev origin: `https://your-project.vercel.app,http://localhost:3000`) and save — Render restarts the service automatically on env var changes.
+4. Open the Vercel URL and run through the Manual Production Checks below.
+
+Render's free tier spins the backend down after 15 minutes idle; the first request after that takes ~30-50s to wake it back up. That's expected on the free plan, not a bug.
+
 ## Frontend
 
 Set these in the frontend host:
