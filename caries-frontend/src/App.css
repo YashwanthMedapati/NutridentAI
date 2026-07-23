@@ -247,24 +247,7 @@ body {
 .hero-sub { font-size: 16px; color: var(--text2); max-width: 480px; margin-bottom: 28px; font-weight: 400; line-height: 1.6; }
 .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 
-/* Phone mockup */
 .hero-visual { position: relative; display: flex; justify-content: center; }
-.phone-mockup {
-  width: 200px; background: var(--card); border: 1px solid var(--border2);
-  border-radius: 28px; padding: 20px 14px; box-shadow: var(--shadow);
-}
-.phone-screen { display: flex; flex-direction: column; gap: 10px; }
-.phone-cam { font-size: 32px; text-align: center; }
-.phone-label { font-size: 11px; color: var(--text2); text-align: center; }
-.phone-result { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
-.phone-result-food { font-size: 12px; font-weight: 500; color: var(--text); }
-.phone-bar { height: 5px; background: var(--track); border-radius: 100px; overflow: hidden; }
-.phone-bar-fill { width: 80%; height: 100%; background: var(--high); border-radius: 100px; }
-.phone-note { font-size: 10px; color: var(--text2); line-height: 1.4; }
-.hero-visual-glow {
-  position: absolute; inset: -20px; z-index: -1;
-  background: radial-gradient(ellipse at center, rgba(224,114,90,0.06) 0%, transparent 70%);
-}
 
 /* ── EXPLAINER ────────────────────────────────────────────────────────────────── */
 .explainer { margin: 40px 0; }
@@ -337,7 +320,7 @@ body {
   min-height: 120px; display: flex; align-items: center; justify-content: center;
   transition: border-color 0.2s, background 0.2s;
 }
-.upload-zone:hover { border-color: var(--text2); background: rgba(255,255,255,0.02); }
+.upload-zone:hover { border-color: var(--text2); background: var(--bg2); }
 .upload-placeholder { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px; }
 .upload-icon-lg { font-size: 40px; }
 .upload-icon    { font-size: 24px; }
@@ -345,7 +328,7 @@ body {
 .upload-hint { font-size: 12px; color: var(--text3); }
 .preview-img { width: 100%; max-height: 260px; object-fit: cover; display: block; }
 .search-input-row { display: flex; gap: 10px; }
-.search-big-input { flex: 1; font-size: 15px !important; padding: 12px 16px !important; }
+input.search-big-input, select.search-big-input { flex: 1; font-size: 15px; padding: 12px 16px; }
 
 /* Barcode placeholder */
 .barcode-placeholder { text-align: center; padding: 8px 0; }
@@ -775,11 +758,7 @@ select option { background: var(--bg3); color: var(--text); }
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.014)),
-    var(--card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--card);
   box-shadow: var(--shadow);
 }
 .auth-brand-panel {
@@ -815,7 +794,7 @@ select option { background: var(--bg3); color: var(--text); }
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--text3);
-  background: rgba(255,255,255,0.04);
+  background: var(--bg2);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.09em;
@@ -861,7 +840,7 @@ select option { background: var(--bg3); color: var(--text); }
   border-radius: 999px;
   padding: 7px 11px;
   color: var(--text2);
-  background: rgba(255,255,255,0.035);
+  background: var(--bg2);
   font-size: 12px;
 }
 .auth-form-card {
@@ -917,7 +896,7 @@ select option { background: var(--bg3); color: var(--text); }
   border-radius: 999px;
   padding: 6px 9px;
   color: var(--text3);
-  background: rgba(255,255,255,0.03);
+  background: var(--bg2);
   font-size: 11px;
   transition: color 0.18s, border-color 0.18s, background 0.18s;
 }
@@ -933,7 +912,7 @@ select option { background: var(--bg3); color: var(--text); }
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px;
-  background: rgba(255,255,255,0.035);
+  background: var(--bg2);
 }
 .auth-session-card span {
   color: var(--text3);
@@ -951,22 +930,6 @@ select option { background: var(--bg3); color: var(--text); }
   flex-direction: column;
   gap: 8px;
   margin: 4px 0;
-}
-[data-theme="light"] .auth-brand-panel,
-[data-theme="light"] .auth-form-card {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.82), rgba(255,255,255,0.52)),
-    var(--card);
-  border-color: rgba(24,26,21,0.14);
-  box-shadow: 0 18px 50px rgba(24,26,21,0.10);
-}
-[data-theme="light"] .auth-product-label,
-[data-theme="light"] .auth-eyebrow,
-[data-theme="light"] .auth-trust-grid span,
-[data-theme="light"] .auth-security-list span,
-[data-theme="light"] .auth-session-card,
-[data-theme="light"] .auth-password-rules span {
-  background: rgba(255,255,255,0.52);
 }
 .settings-grid {
   display: grid;
@@ -1043,8 +1006,8 @@ select option { background: var(--bg3); color: var(--text); }
   line-height: 1.45;
 }
 .analytics-stat-label {
-  color: var(--text3) !important;
-  font-size: 10px !important;
+  color: var(--text3);
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1244,9 +1207,7 @@ select option { background: var(--bg3); color: var(--text); }
   .footer-inner { flex-direction: column; text-align: center; }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════════
-   BARCODE TAB — append these rules to the bottom of App.css
-   ══════════════════════════════════════════════════════════════════════════════ */
+/* ── BARCODE TAB ──────────────────────────────────────────────────────────────── */
 
 /* ── BARCODE ACTIVE TAB ───────────────────────────────────────────────────────── */
 .barcode-active {
@@ -1380,7 +1341,7 @@ select option { background: var(--bg3); color: var(--text); }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   NUTRIDENT COACH — append these to the bottom of App.css
+   NUTRIDENT COACH
    ══════════════════════════════════════════════════════════════════════════════ */
 
 /* ── COACH PAGE HEADER ────────────────────────────────────────────────────────── */
@@ -1569,7 +1530,7 @@ select option { background: var(--bg3); color: var(--text); }
 }
 .nutrient-ring-card {
   align-items: center;
-  background: rgba(255,255,255,0.045);
+  background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 12px;
   display: flex;
@@ -1588,10 +1549,6 @@ select option { background: var(--bg3); color: var(--text); }
 .nutrient-ring-target {
   color: var(--text3);
   font-size: 11px;
-}
-[data-theme="light"] .nutrient-ring-card {
-  background: rgba(255,255,255,0.58);
-  border-color: rgba(24,26,21,0.12);
 }
 
 /* ── PROGRESS ROW ─────────────────────────────────────────────────────────────── */
@@ -1722,8 +1679,8 @@ select option { background: var(--bg3); color: var(--text); }
   gap: 8px;
   margin-top: 10px;
 }
-.meal-search-input { flex: 1; font-size: 13px !important; padding: 8px 12px !important; }
-.btn-sm { padding: 8px 14px !important; font-size: 12px !important; }
+input.meal-search-input { flex: 1; font-size: 13px; padding: 8px 12px; }
+.btn-sm { padding: 8px 14px; font-size: 12px; }
 
 /* ── WATER TAB ────────────────────────────────────────────────────────────────── */
 .water-tab   { display: flex; flex-direction: column; gap: 16px; }
@@ -1742,7 +1699,7 @@ select option { background: var(--bg3); color: var(--text); }
 .btn-water-add:disabled, .btn-water-remove:disabled { opacity: 0.3; cursor: not-allowed; }
 .water-count { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: var(--text); }
 .water-goal-row { display: flex; align-items: center; gap: 10px; }
-.water-goal-input { width: 70px !important; text-align: center; }
+input.water-goal-input { width: 70px; text-align: center; }
 .water-goal-achieved { font-size: 14px; font-weight: 600; color: var(--low); margin-top: 10px; }
 .water-glasses-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .water-glass { width: 42px; height: 42px; border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
@@ -1860,7 +1817,7 @@ select option { background: var(--bg3); color: var(--text); }
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 5px 9px;
-  background: rgba(255,255,255,0.045);
+  background: var(--bg2);
   color: var(--text2);
   font-size: 11px;
   font-weight: 700;
@@ -2186,7 +2143,7 @@ select option { background: var(--bg3); color: var(--text); }
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: 9px;
-  background: rgba(255,255,255,0.04);
+  background: var(--bg2);
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
@@ -2360,73 +2317,13 @@ select option { background: var(--bg3); color: var(--text); }
   position: relative;
   animation: fadeUp 0.4s ease both;
 }
-.hero::before {
-  content: "";
-  position: absolute;
-  inset: 12px 0 auto;
-  height: 180px;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 12% 20%, rgba(111,203,76,0.08), transparent 30%),
-    radial-gradient(circle at 70% 10%, rgba(111,168,196,0.08), transparent 28%),
-    radial-gradient(circle at 90% 55%, rgba(217,161,63,0.07), transparent 30%);
-}
 .hero-tag {
   background: var(--card);
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
-.accent-text {
-  opacity: 1;
-  color: var(--mineral);
-  text-shadow: 0 0 28px rgba(111,168,196,0.16);
-}
-.phone-mockup {
-  animation: floatPhone 4s ease-in-out infinite;
-}
-@keyframes floatPhone {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-.phone-scan-ring {
-  width: 78px;
-  height: 78px;
-  margin: 0 auto;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  font-size: 34px;
-}
-.phone-scan-ring::before,
-.phone-scan-ring::after {
-  content: "";
-  position: absolute;
-  inset: -7px;
-  border: 1px solid rgba(111,168,196,0.5);
-  border-radius: 50%;
-  animation: scanPulse 1.8s ease-out infinite;
-}
-.phone-scan-ring::after {
-  animation-delay: 0.7s;
-}
 @keyframes scanPulse {
   from { opacity: 0.75; transform: scale(0.82); }
   to { opacity: 0; transform: scale(1.22); }
-}
-.phone-macro-mini {
-  display: grid;
-  gap: 5px;
-}
-.phone-macro-mini span {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--text2);
-  font-size: 10px;
-  padding: 4px 8px;
 }
 .explainer-card,
 .step-card,
@@ -2597,13 +2494,17 @@ select option { background: var(--bg3); color: var(--text); }
   border: 0;
 }
 
-/* Global glass surfaces */
-.result-card,
-.fr-card,
-.home-card,
-.stat-tile,
-.explainer-card,
-.step-card,
+/* ── CARD & CHIP SURFACES ────────────────────────────────────────────────────
+   Single source of truth for the "card" and nested "chip" background/border
+   treatment app-wide. Solid surfaces, no blur, no gradients — replaces three
+   generations of layered !important glassmorphism overrides that used to
+   live here (and a second, near-duplicate copy further down this file).
+   Card-level classes not listed here (result-card, fr-card, home-card,
+   stat-tile, explainer-card, step-card, hero-product-card, section-card)
+   are handled by the SIGNATURE CARD SYSTEM section, which also adds the
+   hover lift. freq-risk-card and correction-card keep their own
+   intentionally-tinted borders from their base rules, so they're not
+   restated here either. */
 .daily-journal-card,
 .analyze-input-card,
 .auth-card,
@@ -2615,25 +2516,9 @@ select option { background: var(--bg3); color: var(--text); }
 .tip-card,
 .about-factor-card,
 .settings-card,
-.search-result-block,
-.food-log-item,
-.journal-metric,
-.calendar-day,
-.week-summary-card,
-.freq-risk-card,
-.correction-card,
-.guided-confirm-card,
-.macro-detail-card,
-.ingredient-calorie-card,
-.analysis-quality-card,
-.hero-product-card {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.012)),
-    var(--card) !important;
-  border-color: var(--border) !important;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 16px 44px rgba(0,0,0,0.22);
+.guided-confirm-card {
+  background: var(--card);
+  border-color: var(--border);
 }
 .result-card-head,
 .fr-card-head,
@@ -2654,91 +2539,21 @@ select option { background: var(--bg3); color: var(--text); }
 .image-insights-card,
 .analysis-quality-card,
 .per100g-row span,
-.label-flags-list li {
-  background: rgba(4,10,7,0.48) !important;
-  border-color: var(--border) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-[data-theme="light"] .result-card,
-[data-theme="light"] .fr-card,
-[data-theme="light"] .home-card,
-[data-theme="light"] .stat-tile,
-[data-theme="light"] .explainer-card,
-[data-theme="light"] .step-card,
-[data-theme="light"] .daily-journal-card,
-[data-theme="light"] .analyze-input-card,
-[data-theme="light"] .auth-card,
-[data-theme="light"] .weight-log-card,
-[data-theme="light"] .calorie-plan-card,
-[data-theme="light"] .level-display-card,
-[data-theme="light"] .water-streak-card,
-[data-theme="light"] .prev-result-card,
-[data-theme="light"] .tip-card,
-[data-theme="light"] .about-factor-card,
-[data-theme="light"] .settings-card,
-[data-theme="light"] .search-result-block,
-[data-theme="light"] .food-log-item,
-[data-theme="light"] .journal-metric,
-[data-theme="light"] .calendar-day,
-[data-theme="light"] .week-summary-card,
-[data-theme="light"] .freq-risk-card,
-[data-theme="light"] .correction-card,
-[data-theme="light"] .guided-confirm-card,
-[data-theme="light"] .macro-detail-card,
-[data-theme="light"] .ingredient-calorie-card,
-[data-theme="light"] .analysis-quality-card,
-[data-theme="light"] .hero-product-card {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,255,255,0.46)),
-    var(--card) !important;
-  border-color: rgba(24,26,21,0.14) !important;
-  box-shadow: 0 18px 50px rgba(24,26,21,0.10);
-}
-
-[data-theme="light"] .nutrition-item,
-[data-theme="light"] .journal-date-chip,
-[data-theme="light"] .fli-time,
-[data-theme="light"] .action-plan-item,
-[data-theme="light"] .consumption-note,
-[data-theme="light"] .macro-row,
-[data-theme="light"] .timeline-event,
-[data-theme="light"] .meal-item,
-[data-theme="light"] .barcode-camera-note,
-[data-theme="light"] .image-insights-card,
-[data-theme="light"] .analysis-quality-card,
-[data-theme="light"] .per100g-row span,
-[data-theme="light"] .label-flags-list li {
-  background: rgba(255,255,255,0.52) !important;
-  border-color: rgba(24,26,21,0.12) !important;
-}
-
-[data-theme="light"] .hero-product-card {
-  background:
-    radial-gradient(circle at 82% 12%, rgba(255,255,255,0.18), transparent 35%),
-    linear-gradient(145deg, rgba(255,255,255,0.78), rgba(255,255,255,0.48)) !important;
-}
-
-[data-theme="light"] .hero-risk-meter,
-[data-theme="light"] .hero-preview-grid div {
-  background: rgba(255,255,255,0.58) !important;
-  border-color: rgba(24,26,21,0.12);
-}
-
-[data-theme="light"] .hero-insight-strip span {
-  background: rgba(255,255,255,0.11);
-  border-color: rgba(24,26,21,0.14);
-  color: var(--sprout);
+.label-flags-list li,
+.search-result-block,
+.food-log-item,
+.journal-metric,
+.calendar-day,
+.week-summary-card,
+.macro-detail-card,
+.ingredient-calorie-card {
+  background: var(--bg2);
+  border-color: var(--border);
 }
 
 /* Clean home redesign */
 .home-page .hero {
   padding: 54px 0 46px;
-}
-.home-page .hero::before,
-.home-page .hero-visual-glow {
-  display: none !important;
 }
 .home-page .hero-inner {
   grid-template-columns: minmax(0, 1.05fr) minmax(330px, 0.95fr);
@@ -2767,10 +2582,6 @@ select option { background: var(--bg3); color: var(--text); }
   line-height: 0.98;
   margin-bottom: 22px;
 }
-.home-page .accent-text {
-  color: var(--sprout);
-  text-shadow: none;
-}
 .home-page .hero-sub {
   max-width: 590px;
   font-size: 16px;
@@ -2780,40 +2591,23 @@ select option { background: var(--bg3); color: var(--text); }
 .home-page .hero-actions .btn-primary {
   min-width: 150px;
 }
+/* Card shell: solid, no blur. Structure (grid/flex) lives here; the
+   scan-line sweep motion is defined once, in the SIGNATURE CARD SYSTEM
+   section below, alongside the rest of this card's material. */
 .hero-product-card {
   position: relative;
-  background:
-    radial-gradient(circle at 82% 12%, rgba(255,255,255,0.10), transparent 34%),
-    linear-gradient(145deg, rgba(8,18,11,0.62), rgba(3,7,5,0.50) 58%),
-    var(--card) !important;
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 24px;
-  padding: 22px;
-  box-shadow: 0 24px 70px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.04);
+  border-radius: 20px;
+  padding: 0 0 20px;
   overflow: hidden;
-  animation: fadeUp 0.45s ease both;
-}
-.hero-product-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(120deg, rgba(255,255,255,0.09), transparent 42%);
-  pointer-events: none;
-}
-.hero-preview-head,
-.hero-scan-core,
-.hero-risk-meter,
-.hero-preview-grid,
-.hero-insight-strip {
-  position: relative;
-  z-index: 1;
 }
 .hero-preview-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card2);
 }
 .hero-preview-head img {
   display: block;
@@ -2826,6 +2620,7 @@ select option { background: var(--bg3); color: var(--text); }
 .hero-preview-head span {
   color: var(--text3);
   font-size: 11px;
+  font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -2834,7 +2629,7 @@ select option { background: var(--bg3); color: var(--text); }
   grid-template-columns: 82px 1fr;
   gap: 18px;
   align-items: center;
-  margin-bottom: 22px;
+  padding: 20px 20px 0;
 }
 .hero-scan-orb {
   width: 82px;
@@ -2843,8 +2638,8 @@ select option { background: var(--bg3); color: var(--text); }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.28);
+  background: var(--bg2);
+  border: 1px solid var(--border);
   position: relative;
 }
 .hero-scan-orb::after {
@@ -2852,7 +2647,7 @@ select option { background: var(--bg3); color: var(--text); }
   position: absolute;
   inset: -5px;
   border-radius: 28px;
-  border: 1px solid rgba(255,255,255,0.28);
+  border: 1px solid var(--sprout);
   animation: scanPulse 2.2s ease-out infinite;
 }
 .hero-scan-orb span {
@@ -2869,11 +2664,11 @@ select option { background: var(--bg3); color: var(--text); }
   font-size: 13px;
 }
 .hero-risk-meter {
-  background: rgba(3,7,6,0.55);
-  border: 1px solid rgba(255,255,255,0.14);
+  background: var(--bg2);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 14px;
-  margin-bottom: 14px;
+  margin: 22px 20px 14px;
 }
 .hero-risk-meter > div:first-child {
   display: flex;
@@ -2892,7 +2687,7 @@ select option { background: var(--bg3); color: var(--text); }
 .hero-risk-track {
   height: 8px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.08);
+  background: var(--track);
   overflow: hidden;
 }
 .hero-risk-track span {
@@ -2900,17 +2695,17 @@ select option { background: var(--bg3); color: var(--text); }
   width: 78%;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #d9a13f, #e0725a);
+  background: linear-gradient(90deg, var(--ochre), var(--terracotta));
 }
 .hero-preview-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 14px;
+  margin: 0 20px 14px;
 }
 .hero-preview-grid div {
-  background: rgba(3,7,6,0.50);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: var(--bg2);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px;
 }
@@ -2929,38 +2724,14 @@ select option { background: var(--bg3); color: var(--text); }
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin: 0 20px;
 }
 .hero-insight-strip span {
-  border: 1px solid rgba(255,255,255,0.20);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255,255,255,0.08);
+  background: var(--bg2);
   color: var(--text2);
   padding: 6px 9px;
-}
-.home-page .explainer-card,
-.home-page .step-card,
-.home-page .stat-tile,
-.home-page .empty-state {
-  background:
-    radial-gradient(circle at 90% 0%, rgba(255,255,255,0.06), transparent 30%),
-    linear-gradient(180deg, rgba(255,255,255,0.028), transparent),
-    var(--card);
-  border-color: rgba(255,255,255,0.10);
-}
-.home-page .explainer-icon,
-.home-page .step-icon,
-.home-page .stat-icon,
-.home-page .home-empty-icon {
-  color: var(--sprout);
-  font-family: var(--font-body);
-  font-size: 18px;
-  font-weight: 800;
-}
-.home-page .stat-icon {
-  font-size: 17px;
-}
-.home-page .step-icon {
-  font-size: 18px;
 }
 @media (max-width: 960px) {
   .home-page .hero-inner {
@@ -3008,19 +2779,16 @@ select option { background: var(--bg3); color: var(--text); }
   transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
 }
 .analyze-page .mode-tab:hover {
-  background: rgba(255,255,255,0.08);
+  background: var(--bg2);
   transform: translateY(-1px);
 }
 .analyze-page .mode-tab.active {
-  background: rgba(255,255,255,0.10);
+  background: var(--bg2);
   border-color: var(--border);
   border-bottom-color: var(--text);
 }
 .analyze-page .analyze-input-card {
-  background:
-    radial-gradient(circle at 88% 0%, rgba(255,255,255,0.08), transparent 34%),
-    linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01)),
-    var(--card);
+  background: var(--card);
   border-radius: 18px;
   box-shadow: var(--shadow);
 }
@@ -3029,14 +2797,14 @@ select option { background: var(--bg3); color: var(--text); }
 }
 .analyze-page .upload-zone {
   position: relative;
-  background: rgba(255,255,255,0.035);
-  border-color: rgba(255,255,255,0.28);
+  background: var(--bg2);
+  border-color: var(--border2);
   border-radius: 16px;
   transition: border-color 0.2s, background 0.2s, transform 0.2s;
 }
 .analyze-page .upload-zone:hover {
-  background: rgba(255,255,255,0.075);
-  border-color: rgba(255,255,255,0.55);
+  background: var(--card2);
+  border-color: var(--sprout);
   transform: translateY(-1px);
 }
 .analyze-page .upload-placeholder {
@@ -3051,9 +2819,9 @@ select option { background: var(--bg3); color: var(--text); }
   width: 78px;
   height: 78px;
   margin-bottom: 6px;
-  border: 1px solid rgba(255,255,255,0.26);
+  border: 1px solid var(--border2);
   border-radius: 24px;
-  background: rgba(255,255,255,0.10);
+  background: var(--bg2);
   font-size: 36px;
   animation: scanPulse 2.6s ease-out infinite;
 }
@@ -3065,175 +2833,13 @@ select option { background: var(--bg3); color: var(--text); }
 .analyze-page .preview-img {
   max-height: 360px;
 }
-[data-theme="light"] .analyze-page .analyze-input-card {
-  background:
-    radial-gradient(circle at 88% 0%, rgba(255,255,255,0.16), transparent 34%),
-    linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,255,255,0.48)),
-    var(--card);
-}
-[data-theme="light"] .analyze-page .upload-zone {
-  background: rgba(255,255,255,0.42);
-  border-color: rgba(24,26,21,0.22);
-}
-[data-theme="light"] .analyze-page .upload-zone:hover {
-  background: rgba(255,255,255,0.62);
-  border-color: rgba(24,26,21,0.34);
-}
-
-/* Neutral glass override */
-.result-card,
-.fr-card,
-.home-card,
-.stat-tile,
-.explainer-card,
-.step-card,
-.daily-journal-card,
-.analyze-input-card,
-.auth-card,
-.weight-log-card,
-.calorie-plan-card,
-.level-display-card,
-.water-streak-card,
-.prev-result-card,
-.tip-card,
-.about-factor-card,
-.settings-card,
-.search-result-block,
-.food-log-item,
-.journal-metric,
-.calendar-day,
-.week-summary-card,
-.freq-risk-card,
-.correction-card,
-.guided-confirm-card,
-.macro-detail-card,
-.ingredient-calorie-card,
-.analysis-quality-card,
-.hero-product-card {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018)),
-    var(--card) !important;
-  border-color: var(--border) !important;
-}
-
-.nutrition-item,
-.journal-date-chip,
-.fli-time,
-.action-plan-item,
-.consumption-note,
-.macro-row,
-.timeline-event,
-.meal-item,
-.barcode-camera-note,
-.image-insights-card,
-.analysis-quality-card,
-.label-flags-list li,
-.per100g-row span,
-.hero-risk-meter,
-.hero-preview-grid div {
-  background: rgba(255,255,255,0.045) !important;
-  border-color: var(--border) !important;
-}
-
-.hero-product-card,
-.home-page .explainer-card,
-.home-page .step-card,
-.home-page .stat-tile,
-.home-page .empty-state,
-.analyze-page .analyze-input-card {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018)),
-    var(--card) !important;
-}
-
-.hero-product-card::before {
-  background: linear-gradient(120deg, rgba(255,255,255,0.055), transparent 42%) !important;
-}
-
-.hero-scan-orb,
-.analyze-page .upload-zone,
-.analyze-page .upload-icon-lg,
-.analyze-page .mode-tab:hover,
-.analyze-page .mode-tab.active,
-.hero-insight-strip span {
-  background: rgba(255,255,255,0.055) !important;
-  border-color: var(--border) !important;
-}
-
-.home-page .hero-tag,
-.hero-insight-strip span {
-  color: var(--text2) !important;
-}
-
-[data-theme="light"] .result-card,
-[data-theme="light"] .fr-card,
-[data-theme="light"] .home-card,
-[data-theme="light"] .stat-tile,
-[data-theme="light"] .explainer-card,
-[data-theme="light"] .step-card,
-[data-theme="light"] .daily-journal-card,
-[data-theme="light"] .analyze-input-card,
-[data-theme="light"] .auth-card,
-[data-theme="light"] .weight-log-card,
-[data-theme="light"] .calorie-plan-card,
-[data-theme="light"] .level-display-card,
-[data-theme="light"] .water-streak-card,
-[data-theme="light"] .prev-result-card,
-[data-theme="light"] .tip-card,
-[data-theme="light"] .about-factor-card,
-[data-theme="light"] .settings-card,
-[data-theme="light"] .search-result-block,
-[data-theme="light"] .food-log-item,
-[data-theme="light"] .journal-metric,
-[data-theme="light"] .calendar-day,
-[data-theme="light"] .week-summary-card,
-[data-theme="light"] .freq-risk-card,
-[data-theme="light"] .correction-card,
-[data-theme="light"] .guided-confirm-card,
-[data-theme="light"] .macro-detail-card,
-[data-theme="light"] .ingredient-calorie-card,
-[data-theme="light"] .analysis-quality-card,
-[data-theme="light"] .hero-product-card,
-[data-theme="light"] .analyze-page .analyze-input-card {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,255,255,0.46)),
-    var(--card) !important;
-  border-color: rgba(24,26,21,0.12) !important;
-}
-
-[data-theme="light"] .nutrition-item,
-[data-theme="light"] .journal-date-chip,
-[data-theme="light"] .fli-time,
-[data-theme="light"] .action-plan-item,
-[data-theme="light"] .consumption-note,
-[data-theme="light"] .macro-row,
-[data-theme="light"] .timeline-event,
-[data-theme="light"] .meal-item,
-[data-theme="light"] .barcode-camera-note,
-[data-theme="light"] .image-insights-card,
-[data-theme="light"] .analysis-quality-card,
-[data-theme="light"] .label-flags-list li,
-[data-theme="light"] .per100g-row span,
-[data-theme="light"] .hero-risk-meter,
-[data-theme="light"] .hero-preview-grid div,
-[data-theme="light"] .hero-scan-orb,
-[data-theme="light"] .analyze-page .upload-zone,
-[data-theme="light"] .analyze-page .upload-icon-lg,
-[data-theme="light"] .analyze-page .mode-tab:hover,
-[data-theme="light"] .analyze-page .mode-tab.active,
-[data-theme="light"] .hero-insight-strip span {
-  background: rgba(255,255,255,0.58) !important;
-  border-color: rgba(24,26,21,0.12) !important;
-}
 
 /* Assessment flow */
 .assessment-plan-card,
 .choice-card,
 .coach-target-list div {
   border: 1px solid var(--border);
-  background: rgba(255,255,255,0.045);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: var(--bg2);
 }
 .assessment-plan-card {
   border-radius: 14px;
@@ -3270,7 +2876,7 @@ select option { background: var(--bg3); color: var(--text); }
   border-color: var(--border2);
 }
 .choice-card.active {
-  background: rgba(255,255,255,0.075);
+  background: var(--card2);
   border-color: var(--text2);
 }
 .choice-card strong {
@@ -3309,12 +2915,6 @@ select option { background: var(--bg3); color: var(--text); }
 .coach-target-list strong {
   color: var(--text);
   font-size: 14px;
-}
-[data-theme="light"] .assessment-plan-card,
-[data-theme="light"] .choice-card,
-[data-theme="light"] .coach-target-list div {
-  background: rgba(255,255,255,0.58);
-  border-color: rgba(24,26,21,0.12);
 }
 @media (max-width: 680px) {
   .choice-row,
@@ -3425,7 +3025,7 @@ select option { background: var(--bg3); color: var(--text); }
 .explain-list div {
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: rgba(255,255,255,0.045);
+  background: var(--bg2);
   padding: 10px;
 }
 .model-metric-grid span,
@@ -3451,7 +3051,7 @@ select option { background: var(--bg3); color: var(--text); }
 .explain-inline-link {
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255,255,255,0.045);
+  background: var(--bg2);
   color: var(--text2);
   font-size: 12px;
   padding: 6px 9px;
@@ -3492,7 +3092,7 @@ select option { background: var(--bg3); color: var(--text); }
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255,255,255,0.045);
+  background: var(--bg2);
   padding: 7px 11px;
   white-space: nowrap;
 }
@@ -3514,7 +3114,7 @@ select option { background: var(--bg3); color: var(--text); }
 .guided-chip {
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255,255,255,0.045);
+  background: var(--bg2);
   color: var(--text2);
   cursor: pointer;
   font-size: 12px;
@@ -3541,18 +3141,6 @@ select option { background: var(--bg3); color: var(--text); }
   font-size: 13px;
   line-height: 1.55;
   max-width: 680px;
-}
-[data-theme="light"] .model-metric-grid div,
-[data-theme="light"] .explain-list div,
-[data-theme="light"] .reason-chip-grid span,
-[data-theme="light"] .explain-inline-link {
-  background: rgba(255,255,255,0.58);
-  border-color: rgba(24,26,21,0.12);
-}
-[data-theme="light"] .guided-confirm-head strong,
-[data-theme="light"] .guided-chip {
-  background: rgba(255,255,255,0.58);
-  border-color: rgba(24,26,21,0.12);
 }
 @media (max-width: 760px) {
   .explain-header,
@@ -3584,74 +3172,26 @@ select option { background: var(--bg3); color: var(--text); }
    else gets a quiet, consistent hover response — not competing effects.
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* Selector is intentionally repeated to out-specificity ~17 scattered legacy
-   !important declarations earlier in this file from prior styling passes,
-   without having to hunt down and edit each one individually. */
-.hero-product-card.hero-product-card.hero-product-card,
-.stat-tile.stat-tile.stat-tile,
-.explainer-card.explainer-card.explainer-card,
-.step-card.step-card.step-card,
-.home-card.home-card.home-card,
-.result-card.result-card.result-card,
-.fr-card.fr-card.fr-card,
-.section-card.section-card.section-card {
-  background-color: var(--card) !important;
-  background-image: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border-width: 1px !important;
-  border-style: solid !important;
-  border-color: var(--border) !important;
-  box-shadow: var(--shadow) !important;
+.hero-product-card,
+.stat-tile,
+.explainer-card,
+.step-card,
+.home-card,
+.result-card,
+.fr-card,
+.section-card {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
   transition: transform 0.22s cubic-bezier(0.16,1,0.3,1), box-shadow 0.22s ease, border-color 0.22s ease;
 }
-.stat-tile.stat-tile:hover,
-.explainer-card.explainer-card:hover,
-.step-card.step-card:hover,
-.home-card.home-card:hover {
+.stat-tile:hover,
+.explainer-card:hover,
+.step-card:hover,
+.home-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lift);
-  border-color: var(--sprout) !important;
-}
-
-/* Hero product card: rebuilt as a labeled specimen, not a glass pane */
-.hero-product-card {
-  position: relative;
-  border-radius: 20px;
-  padding: 0 0 20px;
-  overflow: hidden;
-}
-.hero-product-card::before { display: none !important; }
-.hero-preview-head {
-  margin: 0;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--card2);
-}
-.hero-preview-head span { font-family: var(--font-mono); }
-.hero-scan-core { padding: 20px 20px 0; }
-.hero-risk-meter,
-.hero-preview-grid,
-.hero-insight-strip { padding-left: 20px; padding-right: 20px; }
-.hero-scan-orb {
-  background: var(--bg2) !important;
-  border: 1px solid var(--border) !important;
-}
-.hero-scan-orb::after { border-color: var(--sprout); }
-.hero-risk-meter {
-  background: var(--bg2) !important;
-  border: 1px solid var(--border) !important;
-}
-.hero-risk-meter strong { color: var(--high); }
-.hero-risk-track { background: var(--track); }
-.hero-preview-grid div {
-  background: var(--bg2) !important;
-  border: 1px solid var(--border) !important;
-}
-.hero-insight-strip span {
-  background: var(--bg2) !important;
-  border: 1px solid var(--border) !important;
-  color: var(--text2) !important;
+  border-color: var(--sprout);
 }
 
 /* Signature motion: a slow scan-line sweep — the one place this app's
