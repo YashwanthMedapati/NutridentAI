@@ -330,7 +330,7 @@ with open("MODEL_EVALUATION.md", "w", encoding="utf-8") as f:
     if report["git_commit"]:
         f.write(f" (commit `{report['git_commit']}`)")
     f.write("\n\n")
-    f.write("Regenerate this file by running `python test_load.py` with the NHANES "
+    f.write("Regenerate this file by running `python train_model.py` with the NHANES "
             "`.xpt` files in this directory (see README for download links).\n\n")
     f.write("## Dataset\n\n")
     f.write(f"- Merged rows: {report['dataset']['merged_rows']}\n")

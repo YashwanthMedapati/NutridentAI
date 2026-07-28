@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 110
 target-version = "py312"
-exclude = ["test_load.py"]
+exclude = ["train_model.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
