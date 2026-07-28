@@ -24,7 +24,7 @@ Full-stack oral health and nutrition analytics platform using React, Vite, FastA
 - `Caries/feature_names.pkl` - model feature order
 - `Caries/test_core.py` - unit tests for scoring, validation, image heuristics, and metadata
 - `Caries/test_endpoints.py` - integration tests for every API endpoint (mocked USDA/Vision/Open Food Facts calls), including rate limiting
-- `Caries/test_load.py` - NHANES model training/rebuild script; also produces `MODEL_EVALUATION.md`/`.json`
+- `Caries/train_model.py` - NHANES model training/rebuild script; also produces `MODEL_EVALUATION.md`/`.json`
 - `caries-frontend/` - React app
 - `caries-frontend/src/` - Vite React source, contexts, pages, and tests
 - `database/schema.sql` - Supabase schema with RLS policies for authenticated cloud sync
@@ -204,17 +204,17 @@ python -m unittest test_core test_endpoints -v
 
 Model retraining and evaluation:
 
-`Caries/test_load.py` expects local NHANES `.xpt` files in the `Caries` folder (download from the [NHANES 2017-2018 data portal](https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx?BeginYear=2017)). Those raw datasets are intentionally untracked because they are large training artifacts, not runtime dependencies — the deployed API only needs the committed `.pkl` files. Running the script additionally requires `pandas` and `xgboost` (not in `requirements.txt`, since the serving API doesn't need them):
+`Caries/train_model.py` expects local NHANES `.xpt` files in the `Caries` folder (download from the [NHANES 2017-2018 data portal](https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx?BeginYear=2017)). Those raw datasets are intentionally untracked because they are large training artifacts, not runtime dependencies — the deployed API only needs the committed `.pkl` files. Running the script additionally requires `pandas` and `xgboost` (not in `requirements.txt`, since the serving API doesn't need them):
 
 ```powershell
 cd C:\Users\yashw\Desktop\NutriDent-AI\Caries
 pip install pandas xgboost
-python test_load.py
+python train_model.py
 ```
 
 This trains and compares Logistic Regression, Random Forest, and XGBoost on an 80/20 stratified split, runs 5-fold cross-validation, computes a bootstrap 95% confidence interval on held-out accuracy, and writes the full comparison to `Caries/MODEL_EVALUATION.md` and `.json` alongside the updated `.pkl` artifacts.
 
-Current committed model (Random Forest, selected by ROC-AUC, NHANES 2017-2018): **72.04% held-out accuracy** (95% bootstrap CI: 69.95%-74.19%), ROC-AUC 0.798, Cohen's Kappa 0.438, 5-fold CV ROC-AUC 0.798 ± 0.008 — see `Caries/MODEL_EVALUATION.md` for the full breakdown, including per-model comparison and feature importances. Re-run `test_load.py` after pulling a fresh NHANES cycle and diff the regenerated report against the committed one before trusting a specific number long-term.
+Current committed model (Random Forest, selected by ROC-AUC, NHANES 2017-2018): **72.04% held-out accuracy** (95% bootstrap CI: 69.95%-74.19%), ROC-AUC 0.798, Cohen's Kappa 0.438, 5-fold CV ROC-AUC 0.798 ± 0.008 — see `Caries/MODEL_EVALUATION.md` for the full breakdown, including per-model comparison and feature importances. Re-run `train_model.py` after pulling a fresh NHANES cycle and diff the regenerated report against the committed one before trusting a specific number long-term.
 
 Full local preflight:
 

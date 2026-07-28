@@ -2,7 +2,7 @@
 
 Generated: 2026-07-22T18:06:52.560260+00:00 (commit `1b6128c`)
 
-Regenerate this file by running `python test_load.py` with the NHANES `.xpt` files in this directory (see README for download links).
+Regenerate this file by running `python train_model.py` with the NHANES `.xpt` files in this directory (see README for download links).
 
 ## Dataset
 
