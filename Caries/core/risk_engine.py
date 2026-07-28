@@ -1,4 +1,7 @@
 # ── PORTION-AWARE FOOD RISK SCORING ───────────────────────────────────────────
+from core.risk_actions import generate_action_plan
+from core.risk_notes import generate_dentist_notes
+
 
 def food_risk_score(nutrition: dict, portion_g: float = 100.0) -> dict:
     """
@@ -135,10 +138,10 @@ def food_risk_score(nutrition: dict, portion_g: float = 100.0) -> dict:
     }
 
     # ── DYNAMIC DENTIST NOTES ─────────────────────────────────────────────────
-    dentist_notes = _generate_dentist_notes(nutrition, food_name, portion_g, risk_level)
+    dentist_notes = generate_dentist_notes(nutrition, food_name, portion_g, risk_level)
 
     # ── PERSONALISED ACTION PLAN ──────────────────────────────────────────────
-    action_plan = _generate_action_plan(risk_level, nutrition, food_name, portion_g)
+    action_plan = generate_action_plan(risk_level, nutrition, food_name, portion_g)
 
     # ── CONSUMPTION ADVICE ────────────────────────────────────────────────────
     advice_map = {
@@ -165,157 +168,3 @@ def food_risk_score(nutrition: dict, portion_g: float = 100.0) -> dict:
         "dentist_notes":        dentist_notes,
         "action_plan":          action_plan,
     }
-
-
-def _generate_dentist_notes(nutrition: dict, food_name: str,
-                             portion_g: float, risk_level: str) -> list[str]:
-    """
-    Always generates at least 2-3 dentist notes.
-    Dynamic, based on actual nutrient values.
-    """
-    notes = []
-    sugar  = nutrition.get("sugar_g",      0) or 0
-    carbs  = nutrition.get("carbs_g",      0) or 0
-    fat    = nutrition.get("fat_g",        0) or 0
-    calc   = nutrition.get("calcium_mg",   0) or 0
-    phos   = nutrition.get("phosphorus_mg",0) or 0
-    fiber  = nutrition.get("fiber_g",      0) or 0
-    kcal   = nutrition.get("energy_kcal",  0) or 0
-
-    # Sugar note
-    if sugar >= 20:
-        notes.append(
-            f"This food contains {sugar}g of sugar per serving. Oral bacteria (Streptococcus mutans) "
-            f"metabolise sugars rapidly, producing lactic acid that demineralises enamel within minutes."
-        )
-    elif sugar >= 8:
-        notes.append(
-            f"Moderate sugar content ({sugar}g). While not extreme, regular consumption gives bacteria "
-            f"frequent fuel for acid production. Timing and frequency matter more than single intake."
-        )
-    else:
-        notes.append(
-            f"Low sugar content ({sugar}g per serving) — a positive indicator for oral health. "
-            f"Bacteria have less fuel for acid production."
-        )
-
-    # Carbs / fermentable starch note
-    starchy_names = ["pasta","bread","rice","cracker","chip","cereal","noodle","pastry","pretzel","pizza"]
-    is_starchy = any(k in food_name for k in starchy_names)
-    if carbs >= 30 and is_starchy:
-        notes.append(
-            f"Although this food may not taste sweet, refined starch ({carbs}g) is broken down by "
-            f"salivary amylase into fermentable sugars within seconds of eating. This makes starchy "
-            f"foods just as cariogenic as sweet ones when consumed frequently."
-        )
-    elif carbs >= 20:
-        notes.append(
-            f"Fermentable carbohydrates ({carbs}g) are present. These are converted to sugars by "
-            f"salivary enzymes and contribute to oral acid production."
-        )
-
-    # Sticky texture note
-    if fat >= 8 and carbs >= 15:
-        notes.append(
-            "The combination of fat and carbohydrates in this food suggests a sticky or soft texture. "
-            "Sticky foods adhere to tooth surfaces and fissures, prolonging acid contact beyond the "
-            "typical 20-minute clearance window."
-        )
-
-    # Protective mineral note
-    if calc >= 100:
-        notes.append(
-            f"Calcium ({calc}mg per serving) is a key component of hydroxyapatite — the mineral that "
-            f"makes up tooth enamel. Adequate calcium intake supports remineralisation of early lesions."
-        )
-    if phos >= 100:
-        notes.append(
-            f"Phosphorus ({phos}mg) works synergistically with calcium to strengthen enamel. "
-            f"This food contributes positively to your enamel mineral balance."
-        )
-
-    # Fiber note
-    if fiber >= 3:
-        notes.append(
-            f"Dietary fibre ({fiber}g) helps slow the absorption of sugars and stimulates saliva "
-            f"production. Saliva is your mouth's natural defence — it buffers acid and delivers "
-            f"protective minerals to tooth surfaces."
-        )
-
-    # Portion-specific note
-    if portion_g >= 300:
-        notes.append(
-            f"The estimated portion size ({portion_g}g) is relatively large. Larger portions "
-            f"extend the duration of sugar and acid exposure in the mouth."
-        )
-
-    # Calorie density
-    if kcal >= 400:
-        notes.append(
-            f"This is a calorie-dense food ({kcal} kcal/serving). Calorie-dense foods often carry "
-            f"higher sugar or refined carb loads. Consider portion control to limit cariogenic exposure."
-        )
-
-    # Generic low-risk note if nothing concerning found
-    if risk_level == "Low" and len(notes) < 2:
-        notes.append(
-            "This food appears lower in cariogenic factors based on its sugar, carbohydrate, and "
-            "mineral profile. Consider it within your overall diet pattern and dental advice."
-        )
-
-    return notes[:6]  # cap at 6 notes for readability
-
-
-def _generate_action_plan(risk_level: str, nutrition: dict,
-                           food_name: str, portion_g: float) -> list[dict]:
-    """
-    Returns list of { category, action } dicts for personalised recommendations.
-    """
-    sugar = nutrition.get("sugar_g", 0) or 0
-    carbs = nutrition.get("carbs_g", 0) or 0
-    fat   = nutrition.get("fat_g",   0) or 0
-
-    actions = []
-
-    # Immediate oral hygiene
-    if risk_level == "High":
-        actions.append({"category": "Immediate", "action": "💧 Rinse mouth with water immediately after eating"})
-        actions.append({"category": "Immediate", "action": "⏱️ Wait 30 minutes then brush with fluoride toothpaste"})
-        actions.append({"category": "Immediate", "action": "🌙 Never consume this food right before sleep without brushing"})
-    elif risk_level == "Medium":
-        actions.append({"category": "Immediate", "action": "💧 Rinse mouth with water after consuming"})
-        actions.append({"category": "Immediate", "action": "🪥 Brush teeth within 60 minutes"})
-    else:
-        actions.append({"category": "Immediate", "action": "✅ Normal routine — brush twice daily with fluoride toothpaste"})
-
-    # Sticky food specific
-    is_sticky = (fat >= 8 and carbs >= 15) or any(k in food_name for k in ["caramel","toffee","gummy","dried fruit"])
-    if is_sticky:
-        actions.append({"category": "Immediate", "action": "🧵 Floss after eating — sticky foods lodge in tooth fissures"})
-
-    # Frequency guidance
-    if risk_level == "High":
-        actions.append({"category": "Frequency",  "action": "📉 Limit to 1–2 times per week maximum"})
-        actions.append({"category": "Frequency",  "action": "⏰ Eat as part of a main meal — not as a standalone snack"})
-    elif risk_level == "Medium":
-        actions.append({"category": "Frequency",  "action": "📅 Avoid daily consumption — treat as occasional food"})
-        actions.append({"category": "Frequency",  "action": "⏰ Avoid snacking on this between meals"})
-    else:
-        actions.append({"category": "Frequency",  "action": "Lower-risk option in this analysis; monitor your overall diet pattern"})
-
-    # Pairing recommendations
-    actions.append({"category": "Pairing", "action": "🥛 Pair with dairy or calcium-rich food to help neutralise oral acid"})
-    if sugar >= 15:
-        actions.append({"category": "Pairing", "action": "🧀 Follow with a small piece of cheese — raises mouth pH naturally"})
-
-    # Portion advice
-    if portion_g >= 300:
-        actions.append({"category": "Portion", "action": f"📏 Consider reducing portion — current estimate {portion_g}g is large"})
-
-    # Water advice
-    actions.append({"category": "Hydration", "action": "💧 Drink water with meals to promote saliva and rinse teeth"})
-
-    # Dental care
-    actions.append({"category": "Dental Care", "action": "🦷 Schedule check-ups every 6 months for early caries detection"})
-
-    return actions
