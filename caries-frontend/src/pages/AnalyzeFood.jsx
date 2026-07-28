@@ -1,161 +1,23 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useRef } from "react";
 import { useApp } from "../context/AppContext";
-import { RiskBadge, NutritionGrid, MacroAnalysis, Alert, Spinner } from "../components/UI";
-import { Html5Qrcode } from "html5-qrcode";
+import { Alert } from "../components/UI";
 import { apiFetch } from "../api";
-
-// ── NET ORAL RISK COLOUR ───────────────────────────────────────────────────────
-function riskColor(label) {
-  if (!label) return "var(--low)";
-  const l = label.toLowerCase();
-  if (l.includes("very high")) return "var(--high)";
-  if (l.includes("high"))      return "var(--high)";
-  if (l.includes("moderate"))  return "var(--medium)";
-  return "var(--low)";
-}
-
-// ── SCORE BAR COMPONENT ────────────────────────────────────────────────────────
-function ScoreBar({ label, value, max = 10, color }) {
-  const pct = Math.min((value / max) * 100, 100);
-  return (
-    <div className="score-bar-row">
-      <div className="score-bar-labels">
-        <span className="score-bar-label">{label}</span>
-        <span className="score-bar-value" style={{ color }}>{value}/{max}</span>
-      </div>
-      <div className="score-bar-track">
-        <div className="score-bar-fill" style={{ width: `${pct}%`, background: color }} />
-      </div>
-    </div>
-  );
-}
-
-// ── ACTION CATEGORY COLOUR ─────────────────────────────────────────────────────
-const CAT_COLORS = {
-  Immediate:   "var(--high)",
-  Frequency:   "var(--medium)",
-  Pairing:     "var(--mineral)",
-  Portion:     "#9584a3",
-  Hydration:   "#4f95a3",
-  "Dental Care": "var(--low)",
-};
-
-const INGREDIENT_CALORIE_WEIGHTS = {
-  cheese: 0.24,
-  salami: 0.18,
-  pepperoni: 0.18,
-  sausage: 0.18,
-  ham: 0.12,
-  "pizza crust": 0.35,
-  crust: 0.35,
-  dough: 0.35,
-  tomato: 0.06,
-  olives: 0.06,
-  peppers: 0.05,
-  mushrooms: 0.04,
-  basil: 0.01,
-};
-
-function ingredientCalorieBreakdown(ingredients = [], nutrition) {
-  const total = Number(nutrition?.energy_kcal || 0);
-  if (!total || !ingredients.length) return [];
-  const normalized = ingredients.map(item => {
-    const name = typeof item === "string" ? item : item.name;
-    const key = String(name || "").toLowerCase();
-    const weight = INGREDIENT_CALORIE_WEIGHTS[key] || 0.08;
-    return { name, confidence: item.confidence || "User", weight };
-  }).filter(item => item.name);
-  const totalWeight = normalized.reduce((sum, item) => sum + item.weight, 0) || 1;
-  return normalized.map(item => ({
-    ...item,
-    calories: Math.round(total * (item.weight / totalWeight)),
-    percent: Math.round((item.weight / totalWeight) * 100),
-  }));
-}
-
-function foodKindFor(name = "") {
-  const lower = name.toLowerCase();
-  if (lower.includes("pizza")) return "pizza";
-  if (/(rice|pasta|noodle|spaghetti|oatmeal|cereal|bowl)/.test(lower)) return "bowl";
-  if (/(soda|juice|milk|coffee|tea|smoothie|shake|drink)/.test(lower)) return "drink";
-  if (/(sandwich|burger|wrap|taco|burrito)/.test(lower)) return "handheld";
-  return "generic";
-}
-
-const GUIDED_DEFAULTS = {
-  pizza: {
-    slices: "2",
-    pizzaSize: "medium",
-    crust: "regular",
-    cheese: "regular cheese",
-    toppings: ["cheese", "tomato sauce"],
-  },
-  bowl: {
-    bowlSize: "medium bowl",
-    density: "standard",
-    toppings: [],
-  },
-  drink: {
-    volumeMl: "355",
-    sugarLevel: "regular",
-    toppings: [],
-  },
-  handheld: {
-    count: "1",
-    size: "standard",
-    toppings: [],
-  },
-  generic: {
-    serving: "1",
-    size: "medium",
-    toppings: [],
-  },
-};
-
-const TOPPING_OPTIONS = {
-  pizza: ["cheese", "tomato sauce", "salami", "pepperoni", "olives", "tomatoes", "peppers", "mushrooms", "extra cheese"],
-  bowl: ["rice", "pasta", "sauce", "cheese", "chicken", "egg", "vegetables", "nuts", "oil"],
-  drink: ["sugar", "milk", "cream", "syrup", "protein powder", "fruit"],
-  handheld: ["cheese", "sauce", "meat", "vegetables", "egg", "extra spread"],
-  generic: ["sauce", "cheese", "meat", "vegetables", "oil", "sugar"],
-};
-
-function guidedEstimate(kind, answers) {
-  if (kind === "pizza") {
-    const baseBySize = { small: 95, medium: 125, large: 155 };
-    const crustMultiplier = { thin: 0.82, regular: 1, thick: 1.22 };
-    const cheeseMultiplier = { "light cheese": 0.94, "regular cheese": 1, "extra cheese": 1.1 };
-    const slices = Math.max(1, Number(answers.slices || 1));
-    const grams = Math.round(
-      slices *
-      (baseBySize[answers.pizzaSize] || baseBySize.medium) *
-      (crustMultiplier[answers.crust] || 1) *
-      (cheeseMultiplier[answers.cheese] || 1)
-    );
-    return { grams, label: `${slices} ${answers.pizzaSize || "medium"} ${answers.crust || "regular"} pizza slice${slices === 1 ? "" : "s"}` };
-  }
-  if (kind === "bowl") {
-    const base = { "small bowl": 180, "medium bowl": 280, "large bowl": 420 };
-    const density = { light: 0.85, standard: 1, dense: 1.18 };
-    const grams = Math.round((base[answers.bowlSize] || 280) * (density[answers.density] || 1));
-    return { grams, label: answers.bowlSize || "medium bowl" };
-  }
-  if (kind === "drink") {
-    const grams = Math.max(30, Math.round(Number(answers.volumeMl || 355)));
-    return { grams, label: `${grams} ml drink` };
-  }
-  if (kind === "handheld") {
-    const base = { small: 150, standard: 220, large: 320 };
-    const count = Math.max(1, Number(answers.count || 1));
-    const grams = Math.round(count * (base[answers.size] || 220));
-    return { grams, label: `${count} ${answers.size || "standard"} item${count === 1 ? "" : "s"}` };
-  }
-  const base = { small: 100, medium: 150, large: 250 };
-  const serving = Math.max(0.25, Number(answers.serving || 1));
-  const grams = Math.round(serving * (base[answers.size] || 150));
-  return { grams, label: `${serving} ${answers.size || "medium"} serving${serving === 1 ? "" : "s"}` };
-}
+import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
+import { UploadPanel } from "../components/analyze-food/UploadPanel";
+import { SearchPanel } from "../components/analyze-food/SearchPanel";
+import { BarcodePanel } from "../components/analyze-food/BarcodePanel";
+import { DetectionSummary } from "../components/analyze-food/DetectionSummary";
+import { CorrectionCard } from "../components/analyze-food/CorrectionCard";
+import { GuidedPortionCard } from "../components/analyze-food/GuidedPortionCard";
+import { PortionEditorCard } from "../components/analyze-food/PortionEditorCard";
+import { ResultCards } from "../components/analyze-food/ResultCards";
+import { FrequencyRiskCard } from "../components/analyze-food/FrequencyRiskCard";
+import {
+  GUIDED_DEFAULTS,
+  foodKindFor,
+  guidedEstimate,
+  ingredientCalorieBreakdown,
+} from "../utils/foodAnalysis";
 
 export default function AnalyzeFood() {
   const { addToFoodLog } = useApp();
@@ -182,81 +44,19 @@ export default function AnalyzeFood() {
   const [portionEdited, setPortionEdited] = useState(false);
   const [portionError, setPortionError] = useState(null);
 
-  const fileRef    = useRef();
-  const scannerRef = useRef(null); // holds the Html5Qrcode instance
+  const fileRef = useRef();
 
-  // ── BARCODE STATE ─────────────────────────────────────────────────────────────
-  const [barcodeText, setBarcodeText] = useState("");
-  const [cameraOpen,  setCameraOpen]  = useState(false);
-  const [cameraError, setCameraError] = useState(null);
-  const [scannedCode, setScannedCode] = useState(null); // code captured, awaiting confirm
-
-  // ── CAMERA: start scanner when cameraOpen becomes true ───────────────────────
-  useEffect(() => {
-    if (!cameraOpen) return;
-
-    // The div with this id must be in the DOM when the effect runs
-    const SCANNER_DIV_ID = "nutrident-barcode-scanner";
-    const scanner = new Html5Qrcode(SCANNER_DIV_ID);
-    scannerRef.current = scanner;
-
-    scanner
-      .start(
-        { facingMode: "environment" }, // use rear camera on mobile
-        { fps: 10, qrbox: { width: 260, height: 120 } },
-        (decodedText) => {
-          // Pause scanning immediately after first successful read
-          scanner.pause();
-          setScannedCode(decodedText);
-        },
-        () => { /* ignore "not found" frames — fires every frame */ }
-      )
-      .catch((err) => {
-        const msg = typeof err === "string" ? err : err?.message || "Camera error";
-        if (msg.toLowerCase().includes("permission") || msg.toLowerCase().includes("notallowed")) {
-          setCameraError("Camera permission denied. Allow camera access in your browser and try again.");
-        } else {
-          setCameraError("Camera not available on this device or browser.");
-        }
-        setCameraOpen(false);
-      });
-
-    // Cleanup: stop scanner when camera is closed or component unmounts
-    return () => {
-      scanner.stop().catch(() => {});
-    };
-  }, [cameraOpen]);
-
-  // ── CAMERA: open — quick permission probe first ───────────────────────────────
-  const openCamera = async () => {
-    setCameraError(null);
-    setScannedCode(null);
-    setBarcodeText("");
-    try {
-      // Just check permission without keeping the stream
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach((t) => t.stop());
-      setCameraOpen(true);
-    } catch (err) {
-      setCameraError(
-        err.name === "NotAllowedError"
-          ? "Camera permission denied. Allow camera access in your browser settings and try again."
-          : "Camera not available on this device or browser."
-      );
-    }
-  };
-
-  // ── CAMERA: close ─────────────────────────────────────────────────────────────
-  const closeCamera = () => {
-    setCameraOpen(false);
-    setScannedCode(null);
-  };
-
-  // ── CAMERA: resume scanning (scan again) ─────────────────────────────────────
-  const resumeScanning = () => {
-    setScannedCode(null);
-    scannerRef.current?.resume();
-  };
+  const {
+    barcodeText,
+    setBarcodeText,
+    cameraOpen,
+    cameraError,
+    setCameraError,
+    scannedCode,
+    openCamera,
+    closeCamera,
+    resumeScanning,
+  } = useBarcodeScanner();
 
   // ── ANALYZE BARCODE — shared by manual entry and camera ──────────────────────
   const analyzeBarcode = async (codeOverride) => {
@@ -489,142 +289,40 @@ export default function AnalyzeFood() {
       {/* INPUT CARD */}
       <div className="analyze-input-card">
 
-        {/* UPLOAD */}
         {mode === "upload" && (
-          <>
-            <div
-              className={`upload-zone large-zone ${imagePreview ? "has-preview" : ""}`}
-              onClick={() => fileRef.current.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleDrop}
-            >
-              {imagePreview
-                ? <img src={imagePreview} alt="food" className="preview-img" />
-                : (
-                  <div className="upload-placeholder">
-                    <span className="upload-icon-lg">📷</span>
-                    <span className="upload-text">Click or drag to upload a food photo</span>
-                    <span className="upload-hint">JPG, PNG, HEIC supported</span>
-                  </div>
-                )
-              }
-            </div>
-            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-            {imagePreview && (
-              <button className="btn-primary mt-12 w-full" onClick={analyzeImage} disabled={loading}>
-                {loading ? <><Spinner /> Analyzing image…</> : "Analyze Photo"}
-              </button>
-            )}
-          </>
+          <UploadPanel
+            imagePreview={imagePreview}
+            fileRef={fileRef}
+            onFileChange={handleFile}
+            onDrop={handleDrop}
+            onAnalyze={analyzeImage}
+            loading={loading}
+          />
         )}
 
-        {/* SEARCH */}
         {mode === "search" && (
-          <div className="search-input-row">
-            <input
-              className="search-big-input"
-              type="text"
-              placeholder="Type a food name… e.g. pasta, banana, pizza"
-              value={searchText}
-              onChange={e => setSearchText(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && analyzeSearch()}
-            />
-            <button className="btn-primary" onClick={analyzeSearch} disabled={loading}>
-              {loading ? <><Spinner /> Searching…</> : "Search"}
-            </button>
-          </div>
+          <SearchPanel
+            searchText={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            onSearch={analyzeSearch}
+            loading={loading}
+          />
         )}
 
-        {/* BARCODE / QR */}
         {mode === "barcode" && (
-          <div className="barcode-active">
-
-            {/* Header */}
-            <div className="barcode-header">
-              <span className="barcode-header-icon">📦</span>
-              <div>
-                <h3 className="barcode-header-title">Barcode / QR Lookup</h3>
-                <p className="barcode-header-sub">
-                  Scan a product barcode with your camera, or type it manually.
-                  Powered by Open Food Facts — free, no sign-up needed.
-                </p>
-              </div>
-            </div>
-
-            {/* Camera permission error */}
-            {cameraError && <Alert type="error">{cameraError}</Alert>}
-
-            {/* ── LIVE CAMERA SCANNER ── */}
-            {cameraOpen ? (
-              <div className="camera-scanner">
-                {/* html5-qrcode renders the video feed into this div by ID */}
-                <div id="nutrident-barcode-scanner" className="camera-viewfinder" />
-
-                {/* Detected code — confirm or retry */}
-                {scannedCode ? (
-                  <div className="camera-detected">
-                    <span className="camera-detected-label">✅ Detected:</span>
-                    <span className="camera-detected-code">{scannedCode}</span>
-                    <div className="camera-detected-actions">
-                      <button className="btn-primary" onClick={() => analyzeBarcode(scannedCode)} disabled={loading}>
-                        {loading ? <><Spinner /> Looking up…</> : "Look Up Product"}
-                      </button>
-                      <button className="btn-ghost" onClick={resumeScanning}>
-                        Scan Again
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="camera-scanning-msg">
-                    <Spinner /> Point at a barcode or QR code…
-                  </p>
-                )}
-
-                <button className="camera-close-btn" onClick={closeCamera}>
-                  ✕ Close Camera
-                </button>
-              </div>
-            ) : (
-              /* Camera open button (shown when scanner is not active) */
-              <button className="btn-camera" onClick={openCamera} disabled={loading}>
-                <span className="btn-camera-icon">📷</span>
-                Scan Barcode with Camera
-              </button>
-            )}
-
-            {/* Divider */}
-            <div className="barcode-divider"><span>or enter barcode manually</span></div>
-
-            {/* Manual entry */}
-            <div className="barcode-entry-row">
-              <div className="barcode-icon-wrap">
-                <div className="barcode-lines-sm">
-                  {Array.from({ length: 12 }).map((_, i) => (
-                    <div key={i} className="barcode-line-sm"
-                      style={{ height: `${16 + (i % 3) * 6}px` }} />
-                  ))}
-                </div>
-              </div>
-              <input
-                className="search-big-input"
-                type="text"
-                inputMode="numeric"
-                placeholder="e.g. 5000112637922"
-                value={barcodeText}
-                onChange={e => setBarcodeText(e.target.value.replace(/\D/g, ""))}
-                onKeyDown={e => e.key === "Enter" && analyzeBarcode()}
-                maxLength={14}
-              />
-              <button className="btn-primary" onClick={() => analyzeBarcode()} disabled={loading}>
-                {loading ? <><Spinner /> Looking up…</> : "Look Up"}
-              </button>
-            </div>
-
-            <p className="barcode-format-hint">
-              EAN-13, EAN-8, UPC-A, UPC-E &nbsp;·&nbsp; Numbers only, no spaces or dashes
-            </p>
-
-          </div>
+          <BarcodePanel
+            cameraError={cameraError}
+            cameraOpen={cameraOpen}
+            scannedCode={scannedCode}
+            loading={loading}
+            onLookupScanned={analyzeBarcode}
+            onResumeScanning={resumeScanning}
+            onCloseCamera={closeCamera}
+            onOpenCamera={openCamera}
+            barcodeText={barcodeText}
+            setBarcodeText={setBarcodeText}
+            onManualLookup={analyzeBarcode}
+          />
         )}
       </div>
 
@@ -647,564 +345,58 @@ export default function AnalyzeFood() {
       {result && !result.error && (
         <div className="food-results">
 
-          {/* Detected / matched banner */}
-          <div className="detected-food-banner">
-            {result.detected_food && (
-              <span>🔍 Detected: <strong>{result.detected_food}</strong></span>
-            )}
-            <span className="detected-match">
-              USDA match: <em>{result.usda_match}</em>
-            </span>
-          </div>
+          <DetectionSummary
+            result={result}
+            analysisQuality={analysisQuality}
+            imageInsights={imageInsights}
+          />
 
-          {analysisQuality && (
-            <div className={`analysis-quality-card quality-${(analysisQuality.confidence || "low").toLowerCase()}`}>
-              <div>
-                <span className="micro-label">Analysis Confidence</span>
-                <h3>{analysisQuality.confidence} confidence calorie estimate</h3>
-                <p>{analysisQuality.notes?.[0]}</p>
-              </div>
-              <div className="analysis-quality-meta">
-                <span>{Math.round((analysisQuality.confidence_score || 0) * 100)}% score</span>
-                <span>{analysisQuality.source}</span>
-                {analysisQuality.requires_user_review && <strong>Review before logging</strong>}
-                <Link className="explain-inline-link" to="/explain">Why this score?</Link>
-              </div>
-            </div>
-          )}
+          <CorrectionCard
+            correctedFoodName={correctedFoodName}
+            setCorrectedFoodName={setCorrectedFoodName}
+            mealCategory={mealCategory}
+            setMealCategory={setMealCategory}
+            portionG={portionG}
+            onPortionChange={handlePortionChange}
+            userIngredients={userIngredients}
+            setUserIngredients={setUserIngredients}
+            onApplyCorrections={applyCorrections}
+          />
 
-          {imageInsights && (
-            <div className="image-insights-card">
-              <div className="image-insights-head">
-                <span className="micro-label">Photo Observations</span>
-                <span className="label-source-badge">{imageInsights.source || "Image analysis"}</span>
-              </div>
-              {imageInsights.observation_note && (
-                <p className="image-observation-note">{imageInsights.observation_note}</p>
-              )}
-              {imageInsights.detected_ingredients?.length > 0 && (
-                <div className="ingredient-chip-row">
-                  {imageInsights.detected_ingredients.map((item) => (
-                    <span key={item.name} className="ingredient-chip">
-                      {item.name}
-                      <small>{item.confidence}</small>
-                    </span>
-                  ))}
-                </div>
-              )}
-              {imageInsights.visible_amount?.basis && (
-                <p className="image-basis-note">{imageInsights.visible_amount.basis}</p>
-              )}
-            </div>
-          )}
-
-          {/* ── PORTION EDITOR ── */}
-          <div className="correction-card">
-            <div className="correction-head">
-              <div>
-                <span className="micro-label">Review Before Logging</span>
-                <h3>Correct the analysis if the photo estimate is off</h3>
-              </div>
-              <span className="correction-note">These values are saved to your food log.</span>
-            </div>
-            <div className="correction-grid">
-              <label className="field-label">
-                Food name
-                <input
-                  className="search-big-input"
-                  value={correctedFoodName}
-                  onChange={e => setCorrectedFoodName(e.target.value)}
-                  placeholder="e.g. vegetable salami pizza"
-                />
-              </label>
-              <label className="field-label">
-                Meal type
-                <select
-                  className="search-big-input"
-                  value={mealCategory}
-                  onChange={e => setMealCategory(e.target.value)}
-                >
-                  <option value="Breakfast">Breakfast</option>
-                  <option value="Lunch">Lunch</option>
-                  <option value="Dinner">Dinner</option>
-                  <option value="Snack">Snack</option>
-                  <option value="Meal">Meal</option>
-                </select>
-              </label>
-              <label className="field-label">
-                Portion weight
-                <input
-                  type="number"
-                  className="search-big-input"
-                  value={portionG || ""}
-                  onChange={handlePortionChange}
-                  min="10"
-                  max="2000"
-                  placeholder="grams"
-                />
-              </label>
-              <label className="field-label correction-wide">
-                Visible ingredients
-                <textarea
-                  className="correction-textarea"
-                  value={userIngredients}
-                  onChange={e => setUserIngredients(e.target.value)}
-                  placeholder="e.g. cheese, tomato, olives, salami, peppers"
-                />
-              </label>
-            </div>
-            <div className="correction-actions">
-              <button className="btn-primary" onClick={applyCorrections}>Apply Corrections</button>
-              <span>Nutrition and risk recalculate from food name and portion weight.</span>
-            </div>
-          </div>
-
-          <div className="guided-confirm-card">
-            <div className="guided-confirm-head">
-              <div>
-                <span className="micro-label">Guided Portion Check</span>
-                <h3>Answer a few food-specific questions before logging</h3>
-              </div>
-              <strong>{guidedEstimatePreview.grams} g estimate</strong>
-            </div>
-
-            {guidedKind === "pizza" && (
-              <div className="guided-grid">
-                <label className="field-label">
-                  Slices eaten
-                  <input
-                    type="number"
-                    min="1"
-                    max="12"
-                    className="search-big-input"
-                    value={guidedAnswers.slices || "2"}
-                    onChange={e => updateGuidedAnswer("slices", e.target.value)}
-                  />
-                </label>
-                <label className="field-label">
-                  Pizza size
-                  <select className="search-big-input" value={guidedAnswers.pizzaSize || "medium"} onChange={e => updateGuidedAnswer("pizzaSize", e.target.value)}>
-                    <option value="small">Small</option>
-                    <option value="medium">Medium</option>
-                    <option value="large">Large</option>
-                  </select>
-                </label>
-                <label className="field-label">
-                  Crust
-                  <select className="search-big-input" value={guidedAnswers.crust || "regular"} onChange={e => updateGuidedAnswer("crust", e.target.value)}>
-                    <option value="thin">Thin</option>
-                    <option value="regular">Regular</option>
-                    <option value="thick">Thick</option>
-                  </select>
-                </label>
-                <label className="field-label">
-                  Cheese
-                  <select className="search-big-input" value={guidedAnswers.cheese || "regular cheese"} onChange={e => updateGuidedAnswer("cheese", e.target.value)}>
-                    <option value="light cheese">Light cheese</option>
-                    <option value="regular cheese">Regular cheese</option>
-                    <option value="extra cheese">Extra cheese</option>
-                  </select>
-                </label>
-              </div>
-            )}
-
-            {guidedKind === "bowl" && (
-              <div className="guided-grid">
-                <label className="field-label">
-                  Bowl size
-                  <select className="search-big-input" value={guidedAnswers.bowlSize || "medium bowl"} onChange={e => updateGuidedAnswer("bowlSize", e.target.value)}>
-                    <option value="small bowl">Small bowl</option>
-                    <option value="medium bowl">Medium bowl</option>
-                    <option value="large bowl">Large bowl</option>
-                  </select>
-                </label>
-                <label className="field-label">
-                  Density
-                  <select className="search-big-input" value={guidedAnswers.density || "standard"} onChange={e => updateGuidedAnswer("density", e.target.value)}>
-                    <option value="light">Light / mostly vegetables</option>
-                    <option value="standard">Standard</option>
-                    <option value="dense">Dense / oily / creamy</option>
-                  </select>
-                </label>
-              </div>
-            )}
-
-            {guidedKind === "drink" && (
-              <div className="guided-grid">
-                <label className="field-label">
-                  Volume
-                  <select className="search-big-input" value={guidedAnswers.volumeMl || "355"} onChange={e => updateGuidedAnswer("volumeMl", e.target.value)}>
-                    <option value="240">240 ml cup</option>
-                    <option value="355">355 ml can</option>
-                    <option value="500">500 ml bottle</option>
-                    <option value="700">700 ml large drink</option>
-                  </select>
-                </label>
-                <label className="field-label">
-                  Sugar level
-                  <select className="search-big-input" value={guidedAnswers.sugarLevel || "regular"} onChange={e => updateGuidedAnswer("sugarLevel", e.target.value)}>
-                    <option value="unsweetened">Unsweetened</option>
-                    <option value="regular">Regular</option>
-                    <option value="extra sweet">Extra sweet / syrup</option>
-                  </select>
-                </label>
-              </div>
-            )}
-
-            {guidedKind === "handheld" && (
-              <div className="guided-grid">
-                <label className="field-label">
-                  Count
-                  <input
-                    type="number"
-                    min="1"
-                    max="6"
-                    className="search-big-input"
-                    value={guidedAnswers.count || "1"}
-                    onChange={e => updateGuidedAnswer("count", e.target.value)}
-                  />
-                </label>
-                <label className="field-label">
-                  Size
-                  <select className="search-big-input" value={guidedAnswers.size || "standard"} onChange={e => updateGuidedAnswer("size", e.target.value)}>
-                    <option value="small">Small</option>
-                    <option value="standard">Standard</option>
-                    <option value="large">Large</option>
-                  </select>
-                </label>
-              </div>
-            )}
-
-            {guidedKind === "generic" && (
-              <div className="guided-grid">
-                <label className="field-label">
-                  Servings eaten
-                  <input
-                    type="number"
-                    min="0.25"
-                    step="0.25"
-                    max="8"
-                    className="search-big-input"
-                    value={guidedAnswers.serving || "1"}
-                    onChange={e => updateGuidedAnswer("serving", e.target.value)}
-                  />
-                </label>
-                <label className="field-label">
-                  Serving size
-                  <select className="search-big-input" value={guidedAnswers.size || "medium"} onChange={e => updateGuidedAnswer("size", e.target.value)}>
-                    <option value="small">Small</option>
-                    <option value="medium">Medium</option>
-                    <option value="large">Large</option>
-                  </select>
-                </label>
-              </div>
-            )}
-
-            <div className="guided-toppings">
-              <span className="micro-label">Ingredients and extras included in analysis notes</span>
-              <div className="guided-chip-row">
-                {(TOPPING_OPTIONS[guidedKind] || TOPPING_OPTIONS.generic).map(name => (
-                  <button
-                    key={name}
-                    type="button"
-                    className={`guided-chip ${(guidedAnswers.toppings || []).includes(name) ? "active" : ""}`}
-                    onClick={() => toggleGuidedTopping(name)}
-                  >
-                    {name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="guided-actions">
-              <p>
-                Preview: {guidedEstimatePreview.label}. This recalculates calories from the matched food,
-                selected portion, and enriched food description before logging.
-              </p>
-              <button className="btn-primary" onClick={applyGuidedEstimate}>Use Guided Estimate</button>
-            </div>
-          </div>
+          <GuidedPortionCard
+            guidedKind={guidedKind}
+            guidedAnswers={guidedAnswers}
+            updateGuidedAnswer={updateGuidedAnswer}
+            toggleGuidedTopping={toggleGuidedTopping}
+            guidedEstimatePreview={guidedEstimatePreview}
+            onApplyGuidedEstimate={applyGuidedEstimate}
+          />
 
           {portionInfo && (
-            <div className="portion-editor-card">
-              <div className="portion-editor-head">
-                <span className="portion-editor-title">⚖️ Portion Size</span>
-                <span className={`portion-confidence conf-${(portionInfo.confidence || "low").toLowerCase()}`}>
-                  {portionInfo.confidence} confidence
-                </span>
-              </div>
-              <p className="portion-estimate-label">
-                {portionEdited
-                  ? `Using your portion: ${portionG} g`
-                  : `AI estimate: ${portionInfo.label}`
-                }
-              </p>
-              <p className="portion-note">
-                ℹ️ USDA values are per 100 g. All nutrition and risk values below are scaled to your portion.
-              </p>
-              <div className="portion-input-row">
-                <div className="portion-presets">
-                  {portionOptions.map(({ label, g }) => (
-                    <button
-                      key={label}
-                      className={`portion-preset-btn ${portionG === g ? "active" : ""}`}
-                      onClick={() => { setPortionG(g); recalcWithPortion(g); setPortionEdited(true); }}
-                    >
-                      {label} ({g} g)
-                    </button>
-                  ))}
-                </div>
-                <div className="portion-custom-row">
-                  <input
-                    type="number"
-                    className="portion-input"
-                    value={portionG || ""}
-                    onChange={handlePortionChange}
-                    min="10"
-                    max="2000"
-                    placeholder="grams"
-                  />
-                  <button className="btn-primary" onClick={handlePortionApply}>
-                    Recalculate
-                  </button>
-                </div>
-              </div>
-              {portionError && <Alert type="error">{portionError}</Alert>}
-            </div>
+            <PortionEditorCard
+              portionInfo={portionInfo}
+              portionEdited={portionEdited}
+              portionG={portionG}
+              portionOptions={portionOptions}
+              onPresetSelect={(g) => { setPortionG(g); recalcWithPortion(g); setPortionEdited(true); }}
+              onPortionChange={handlePortionChange}
+              onPortionApply={handlePortionApply}
+              portionError={portionError}
+            />
           )}
 
-          {/* ── 4-CARD GRID ── */}
-          <div className="food-results-grid">
+          <ResultCards
+            risk={risk}
+            riskLevel={riskLevel}
+            nutrition={nutrition}
+            portionG={portionG}
+            portionInfo={portionInfo}
+            ingredientCalories={ingredientCalories}
+            nutritionPer100g={result?.nutrition_per_100g}
+          />
 
-            {/* 1. CARIES RISK */}
-            <div className="fr-card fr-card-risk">
-              <div className="fr-card-head">
-                <span className="fr-card-icon">🦷</span>
-                <h3 className="fr-card-title">Caries Risk</h3>
-                <RiskBadge risk={riskLevel} />
-              </div>
-              <div className="fr-risk-score">
-                <span className="fr-score-num">{risk?.food_risk_score ?? "—"}</span>
-                <span className="fr-score-denom">/10</span>
-              </div>
+          {risk?.frequency_risk && <FrequencyRiskCard frequencyRisk={risk.frequency_risk} />}
 
-              {/* Score bars */}
-              <div className="score-bars">
-                <ScoreBar
-                  label="Exposure Score"
-                  value={risk?.exposure_score ?? 0}
-                  max={10}
-                  color="var(--high)"
-                />
-                <ScoreBar
-                  label="Protective Score"
-                  value={risk?.protective_score ?? 0}
-                  max={4}
-                  color="var(--low)"
-                />
-              </div>
-
-              {/* Net Oral Risk Index */}
-              {risk?.net_oral_risk_index !== undefined && (
-                <div className="nori-block">
-                  <span className="nori-label">Net Oral Risk Index</span>
-                  <div className="nori-value-row">
-                    <span
-                      className="nori-value"
-                      style={{ color: riskColor(risk.net_oral_risk_label) }}
-                    >
-                      {risk.net_oral_risk_index}
-                      <span className="nori-denom">/10</span>
-                    </span>
-                    <span
-                      className="nori-badge"
-                      style={{ color: riskColor(risk.net_oral_risk_label) }}
-                    >
-                      {risk.net_oral_risk_label}
-                    </span>
-                  </div>
-                  <div className="nori-track">
-                    <div
-                      className="nori-fill"
-                      style={{
-                        width: `${(risk.net_oral_risk_index / 10) * 100}%`,
-                        background: riskColor(risk.net_oral_risk_label),
-                      }}
-                    />
-                  </div>
-                  <p className="nori-explanation">
-                    Exposure ({risk.exposure_score}) minus protective factors ({risk.protective_score})
-                    = net oral caries risk.
-                  </p>
-                </div>
-              )}
-
-              {risk?.reasons?.length > 0 && (
-                <div className="why-block mt-12">
-                  <span className="micro-label">Risk Factors</span>
-                  <ul className="reason-list">
-                    {risk.reasons.map((r, i) => <li key={i}>{r}</li>)}
-                  </ul>
-                </div>
-              )}
-              {risk?.warning && <Alert type="warning">{risk.warning}</Alert>}
-            </div>
-
-            {/* 2. CALORIES & NUTRITION */}
-            <div className="fr-card">
-              <div className="fr-card-head">
-                <span className="fr-card-icon">🥗</span>
-                <h3 className="fr-card-title">Calories & Nutrition</h3>
-                <span className="fr-kcal">{nutrition?.energy_kcal ?? "—"} kcal</span>
-              </div>
-              <div className="portion-tag">
-                For {portionG || portionInfo?.g || 100} g serving
-              </div>
-              <NutritionGrid nutrition={nutrition} />
-              <div className="macro-detail-card">
-                <div className="macro-detail-head">
-                  <span className="micro-label">Detailed Macro Analysis</span>
-                  <strong>{nutrition?.energy_kcal ?? "-"} kcal total</strong>
-                </div>
-                <MacroAnalysis nutrition={nutrition} />
-              </div>
-
-              {ingredientCalories.length > 0 && (
-                <div className="ingredient-calorie-card">
-                  <div className="macro-detail-head">
-                    <span className="micro-label">Ingredient Calorie Breakdown</span>
-                    <strong>{nutrition?.energy_kcal ?? "-"} kcal total</strong>
-                  </div>
-                  <p>
-                    Total calories are calculated from the matched USDA food and your portion size.
-                    This table estimates how visible ingredients contribute to that total; it is not a direct ingredient-by-ingredient measurement.
-                  </p>
-                  <div className="ingredient-calorie-list">
-                    {ingredientCalories.map(item => (
-                      <div className="ingredient-calorie-row" key={item.name}>
-                        <span>{item.name}<small>{item.confidence}</small></span>
-                        <div className="ingredient-calorie-track">
-                          <div style={{ width: `${item.percent}%` }} />
-                        </div>
-                        <strong>{item.calories} kcal</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Per 100 g comparison */}
-              {result?.nutrition_per_100g && (
-                <div className="per100g-note">
-                  <span className="micro-label">Per 100 g reference</span>
-                  <div className="per100g-row">
-                    <span>
-                      <small>Calories</small>
-                      <strong>{result.nutrition_per_100g.energy_kcal ?? "-"} kcal</strong>
-                    </span>
-                    <span>
-                      <small>Sugar</small>
-                      <strong>{result.nutrition_per_100g.sugar_g ?? "-"} g</strong>
-                    </span>
-                    <span>
-                      <small>Carbs</small>
-                      <strong>{result.nutrition_per_100g.carbs_g ?? "-"} g</strong>
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 3. AI DENTIST NOTES */}
-            <div className="fr-card">
-              <div className="fr-card-head">
-                <span className="fr-card-icon">🩺</span>
-                <h3 className="fr-card-title">Oral Health Notes</h3>
-              </div>
-              {risk?.dentist_notes?.length > 0
-                ? (
-                  <ul className="dentist-notes">
-                    {risk.dentist_notes.map((n, i) => <li key={i}>{n}</li>)}
-                  </ul>
-                )
-                : <p className="fr-empty">No specific dental concerns for this food.</p>
-              }
-            </div>
-
-            {/* 4. ACTION PLAN */}
-            <div className={`fr-card fr-action-${(riskLevel || "low").toLowerCase()}`}>
-              <div className="fr-card-head">
-                <span className="fr-card-icon">📋</span>
-                <h3 className="fr-card-title">Action Plan</h3>
-              </div>
-
-              {risk?.action_plan?.length > 0
-                ? (
-                  <div className="action-plan-list">
-                    {risk.action_plan.map((item, i) => (
-                      <div key={i} className="action-plan-item">
-                        <span
-                          className="action-cat-dot"
-                          style={{ background: CAT_COLORS[item.category] || "#94a3b8" }}
-                        />
-                        <div>
-                          <span className="action-cat-label">{item.category}</span>
-                          <span className="action-text">{item.action}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-                : (
-                  <ul className="action-list">
-                    <li>✅ Maintain regular brushing and flossing</li>
-                    <li>💧 Stay hydrated to promote saliva production</li>
-                    <li>🦷 Schedule dental check-ups every 6 months</li>
-                  </ul>
-                )
-              }
-
-              {risk?.consumption_advice && (
-                <div className="consumption-note">{risk.consumption_advice}</div>
-              )}
-            </div>
-          </div>
-
-          {/* ── FREQUENCY RISK PANEL ── */}
-          {risk?.frequency_risk && (
-            <div className="freq-risk-card">
-              <div className="fr-card-head">
-                <span className="fr-card-icon freq-icon-pulse">R</span>
-                <h3 className="fr-card-title">Food Frequency Risk</h3>
-              </div>
-              <p className="freq-explanation">{risk.frequency_risk.explanation}</p>
-              <div className="freq-comparison">
-                <div className="freq-item">
-                  <span className="freq-icon">1x</span>
-                  <span className="freq-label">Occasional intake</span>
-                  <span
-                    className="freq-badge"
-                    style={{ color: riskColor(risk.frequency_risk.occasional_risk) }}
-                  >
-                    {risk.frequency_risk.occasional_risk} Risk
-                  </span>
-                  <p className="freq-note">Eating 1-2 times per week creates fewer acid exposure cycles.</p>
-                </div>
-                <div className="freq-divider">-&gt;</div>
-                <div className="freq-item">
-                  <span className="freq-icon">7x</span>
-                  <span className="freq-label">Frequent intake</span>
-                  <span
-                    className="freq-badge"
-                    style={{ color: riskColor(risk.frequency_risk.frequent_risk) }}
-                  >
-                    {risk.frequency_risk.frequent_risk} Risk
-                  </span>
-                  <p className="freq-note">Eating daily or multiple times per day repeats acid attacks.</p>
-                </div>
-              </div>
-            </div>
-          )}
           {/* LOG BUTTON */}
           <div className="log-row">
             {logged ? (
