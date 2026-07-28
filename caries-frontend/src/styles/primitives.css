@@ -80,7 +80,6 @@ select option { background: var(--bg3); color: var(--text); }
 .results-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .results-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--text); }
 .results-top-grid { display: grid; grid-template-columns: 1fr 180px 1fr; gap: 12px; margin-bottom: 12px; }
-.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 .result-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; position: relative; transition: border-color 0.2s; }
 .result-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .result-card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 500; }
