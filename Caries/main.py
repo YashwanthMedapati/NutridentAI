@@ -40,11 +40,13 @@ from core.risk_engine import food_risk_score
 from core.schemas import BarcodeInput, CombinedInput, FoodInput, PatientInput
 from core.usda import extract_nutrients, search_food
 from core.vision import (  # noqa: F401
-    _best_food_detection,
-    _visible_ingredients_from_terms,
     _vision_terms,
     analyze_food_image,
     detect_food_from_image,
+)
+from core.vision_heuristics import (  # noqa: F401
+    _best_food_detection,
+    _visible_ingredients_from_terms,
     estimate_image_portion,
 )
 
