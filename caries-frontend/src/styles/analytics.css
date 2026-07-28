@@ -1,7 +1,3 @@
-/* ── CHARTS PAGE ──────────────────────────────────────────────────────────────── */
-.charts-page-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.charts-full { grid-column: 1 / -1; }
-
 /* BEHAVIOR ANALYTICS */
 .analytics-summary-grid {
   display: grid;

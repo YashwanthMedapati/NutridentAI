@@ -2,7 +2,7 @@
 @media (max-width: 960px) {
   .hero-inner, .results-top-grid, .nt-main-grid, .nt-summary-row,
   .stats-row, .explainer-grid, .steps-row, .home-cards,
-  .food-results-grid, .charts-row, .charts-page-grid, .analytics-grid { grid-template-columns: 1fr; }
+  .food-results-grid, .analytics-grid { grid-template-columns: 1fr; }
   .analytics-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .nav-links { display: none; flex-direction: column; width: 100%; background: var(--nav-bg); padding: 8px 0; }
   .nav-links.open { display: flex; }

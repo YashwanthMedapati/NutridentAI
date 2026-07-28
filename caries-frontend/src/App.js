@@ -14,7 +14,10 @@ import BehaviorAnalytics from "./pages/BehaviorAnalytics";
 import Explainability from "./pages/Explainability";
 import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
-import { About, Tips, PreviousResults, Privacy } from "./pages/OtherPages";
+import About from "./pages/About";
+import Tips from "./pages/Tips";
+import PreviousResults from "./pages/PreviousResults";
+import Privacy from "./pages/Privacy";
 import "./App.css";
 
 export default function App() {
