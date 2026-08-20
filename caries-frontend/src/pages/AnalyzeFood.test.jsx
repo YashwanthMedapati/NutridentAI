@@ -119,6 +119,86 @@ describe("AnalyzeFood barcode flow", () => {
     expect(await screen.findByText(/No product found for barcode/i)).toBeInTheDocument();
   });
 
+  test("analyzes a combo meal and renders the item breakdown", async () => {
+    mocks.apiFetchMock.mockResolvedValueOnce({
+      detected_food: "Combo meal",
+      usda_match: "Combo meal",
+      food_name_entered: "chana masala + garlic naan",
+      meal_items: [
+        {
+          matched_food: "Chana masala",
+          portion_g: 300,
+          source: "Indian nutrition dataset",
+          nutrition: { energy_kcal: 360, carbs_g: 48, protein_g: 15 },
+        },
+        {
+          matched_food: "Garlic naan",
+          portion_g: 110,
+          source: "Indian nutrition dataset",
+          nutrition: { energy_kcal: 341, carbs_g: 52.8, protein_g: 9.9 },
+        },
+      ],
+      nutrition: {
+        energy_kcal: 701,
+        sugar_g: 11,
+        carbs_g: 100.8,
+        fat_g: 23,
+        protein_g: 24.9,
+        calcium_mg: 180,
+        phosphorus_mg: 330,
+        portion_g: 410,
+      },
+      nutrition_per_100g: { energy_kcal: 171, sugar_g: 2.7, carbs_g: 24.6 },
+      portion_estimate: { g: 410, label: "Combined meal (410g total)", confidence: "Moderate" },
+      risk: {
+        food_risk_score: 6,
+        food_risk_level: "High",
+        exposure_score: 6,
+        protective_score: 2,
+        net_oral_risk_index: 4,
+        net_oral_risk_label: "Moderate",
+        reasons: [],
+        dentist_notes: [],
+        action_plan: [],
+        frequency_risk: { occasional_risk: "High", frequent_risk: "Very High", explanation: "" },
+        consumption_advice: "Rinse after eating.",
+      },
+      source: "Indian nutrition dataset",
+      source_details: {
+        name: "Indian nutrition dataset",
+        record: "Combo meal",
+        item_count: 2,
+      },
+    });
+
+    renderAnalyzeFood();
+
+    fireEvent.click(screen.getByText("🍽️ Combo Meal"));
+    const foodInputs = screen.getAllByPlaceholderText(/e\.g\./i);
+    fireEvent.change(foodInputs[0], { target: { value: "chana masala" } });
+    fireEvent.change(foodInputs[1], { target: { value: "garlic naan" } });
+    fireEvent.change(screen.getAllByPlaceholderText("grams")[1], { target: { value: "110" } });
+    fireEvent.click(screen.getByText("Analyze Meal"));
+
+    await waitFor(() => expect(mocks.apiFetchMock).toHaveBeenCalledTimes(1));
+    expect(mocks.apiFetchMock).toHaveBeenCalledWith(
+      "/meal-risk",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          items: [
+            { food_name: "chana masala", portion_g: undefined },
+            { food_name: "garlic naan", portion_g: 110 },
+          ],
+        }),
+      })
+    );
+
+    expect(await screen.findByText("Meal Item Breakdown")).toBeInTheDocument();
+    expect(screen.getByText("Chana masala")).toBeInTheDocument();
+    expect(screen.getByText("Garlic naan")).toBeInTheDocument();
+  });
+
   test("scans a barcode via the camera and looks it up after confirmation", async () => {
     // Simulate html5-qrcode successfully starting and immediately decoding a code.
     mocks.scannerStart.mockImplementation((_camConfig, _scanConfig, onSuccess) => {

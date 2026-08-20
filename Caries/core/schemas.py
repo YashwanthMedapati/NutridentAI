@@ -52,6 +52,14 @@ class FoodInput(BaseModel):
         return _strip_food_name(value)
 
 
+class MealItemInput(FoodInput):
+    pass
+
+
+class MealInput(BaseModel):
+    items: list[MealItemInput] = Field(..., min_length=1, max_length=12)
+
+
 class BarcodeInput(BaseModel):
     barcode: str = Field(..., pattern=r"^\d{8,14}$")  # EAN-13, UPC-A, UPC-E etc.
     portion_g: Optional[float] = Field(None, ge=1, le=2000)  # user override; falls back to serving size on label

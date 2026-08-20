@@ -13,10 +13,39 @@ export function GuidedPortionCard({
     <div className="guided-confirm-card">
       <div className="guided-confirm-head">
         <div>
-          <span className="micro-label">Guided Portion Check</span>
-          <h3>Answer a few food-specific questions before logging</h3>
+          <span className="micro-label">Photo Portion Confirmation</span>
+          <h3>Confirm what was actually eaten before logging</h3>
         </div>
         <strong>{guidedEstimatePreview.grams} g estimate</strong>
+      </div>
+
+      <div className="guided-grid guided-photo-grid">
+        <label className="field-label">
+          How much was eaten?
+          <select className="search-big-input" value={guidedAnswers.visibleAmount || "most"} onChange={e => updateGuidedAnswer("visibleAmount", e.target.value)}>
+            <option value="quarter">About 1/4 plate</option>
+            <option value="half">About 1/2 plate</option>
+            <option value="most">Most of what is shown</option>
+            <option value="all">All of what is shown</option>
+            <option value="more">More than shown / second serving</option>
+          </select>
+        </label>
+        <label className="field-label">
+          Plate/container size
+          <select className="search-big-input" value={guidedAnswers.plateSize || "medium plate"} onChange={e => updateGuidedAnswer("plateSize", e.target.value)}>
+            <option value="small plate">Small plate / bowl</option>
+            <option value="medium plate">Medium plate / bowl</option>
+            <option value="large plate">Large plate / bowl</option>
+          </select>
+        </label>
+        <label className="field-label">
+          Portion density
+          <select className="search-big-input" value={guidedAnswers.density || "standard"} onChange={e => updateGuidedAnswer("density", e.target.value)}>
+            <option value="light">Light / thin / mostly vegetables</option>
+            <option value="standard">Standard</option>
+            <option value="dense">Heavy / thick / oily / creamy</option>
+          </select>
+        </label>
       </div>
 
       {guidedKind === "pizza" && (
@@ -67,14 +96,6 @@ export function GuidedPortionCard({
               <option value="small bowl">Small bowl</option>
               <option value="medium bowl">Medium bowl</option>
               <option value="large bowl">Large bowl</option>
-            </select>
-          </label>
-          <label className="field-label">
-            Density
-            <select className="search-big-input" value={guidedAnswers.density || "standard"} onChange={e => updateGuidedAnswer("density", e.target.value)}>
-              <option value="light">Light / mostly vegetables</option>
-              <option value="standard">Standard</option>
-              <option value="dense">Dense / oily / creamy</option>
             </select>
           </label>
         </div>

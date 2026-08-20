@@ -11,7 +11,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npm.cmd run dev -- --host 127.0.0.1 --port 3010",
+    command: "node --no-warnings ./node_modules/vite/bin/vite.js --host 127.0.0.1 --port 3010",
     url: "http://127.0.0.1:3010",
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

@@ -20,6 +20,12 @@ def _visible_ingredients_from_terms(terms: list[str], food_name: str) -> list[di
         "mushroom": ["mushroom"],
         "ham": ["ham"],
         "onion": ["onion"],
+        "chickpeas": ["chickpea", "chickpeas", "chana", "chole"],
+        "paneer": ["paneer"],
+        "lentils": ["lentil", "dal", "daal"],
+        "rice": ["rice", "biryani", "pulao"],
+        "naan/flatbread": ["naan", "roti", "chapati", "paratha", "flatbread"],
+        "cream/butter sauce": ["butter", "cream", "makhani", "masala sauce"],
     }
     ingredients = []
     for label, markers in ingredient_map.items():
@@ -120,6 +126,9 @@ def _best_food_detection(vision_result: dict) -> str | None:
         "chicken","beef","fish","egg","cheese","yogurt","ice cream",
         "cereal","soup","fries","potato","chocolate","candy","taco",
         "sushi","steak","oatmeal","pancake","waffle","muffin",
+        "naan","roti","chapati","paratha","biryani","pulao","dosa",
+        "idli","samosa","poha","upma","dal","daal","chana","chole",
+        "rajma","paneer","tikka","masala","lassi","chai",
     }
 
     cleaned: list[tuple[str, float]] = []

@@ -1,12 +1,13 @@
 # NutriDent AI
 
-Full-stack oral health and nutrition analytics platform using React, Vite, FastAPI, USDA FoodData Central, Open Food Facts, Google Vision, Supabase Auth, and a local Random Forest model.
+Full-stack oral health and nutrition analytics platform using React, Vite, FastAPI, an Indian food nutrition dataset, USDA FoodData Central, Open Food Facts, Google Vision, Supabase Auth, and a local Random Forest model.
 
 ## Features
 
 - Dental caries risk prediction from patient, diet, smoking, and eating-pattern inputs
-- Food-risk analysis by text search, image upload, or barcode lookup
-- Portion-aware nutrition and oral-risk recalculation with confidence/review metadata
+- Food-risk analysis by text search, combo meal entry, image upload, or barcode lookup
+- Portion-aware nutrition and oral-risk recalculation with photo confirmation, confidence, and review metadata
+- Nutrition-source transparency with item-level calorie breakdowns for combo meals
 - Persistent browser-local food logs, previous assessments, coach profile, water, weight, badges, and streaks
 - Daily Log with calendar-style food history, logged eating times, daily weight, calories, and CSV export
 - Nutrition tracker with editable logged portions and meal categories
@@ -19,7 +20,9 @@ Full-stack oral health and nutrition analytics platform using React, Vite, FastA
 ## Project Structure
 
 - `Caries/main.py` - FastAPI app assembly and route handlers (thin entrypoint)
-- `Caries/core/` - backend modules: config, schemas, portion/quality/risk scoring, USDA, Open Food Facts, Vision, patient model, rate limiting, middleware
+- `Caries/core/` - backend modules: config, schemas, portion/quality/risk scoring, Indian food lookup, USDA, Open Food Facts, Vision, patient model, rate limiting, middleware
+- `Caries/data/indian_foods.json` - normalized Indian dish nutrition fallback for common foods such as chana masala, chicken tikka masala, palak paneer, biryani, naan, dosa, idli, chaat/street foods, and Indian drinks/desserts
+- `Caries/tools/import_indian_food_dataset.py` - helper to normalize INDB/IFCT-compatible CSV exports into the local Indian food dataset format
 - `Caries/caries_model.pkl` - local trained model
 - `Caries/feature_names.pkl` - model feature order
 - `Caries/test_core.py` - unit tests for scoring, validation, image heuristics, and metadata
@@ -68,9 +71,27 @@ Useful endpoints:
 - `GET /model-info` - model type, feature count, version, training-data note, limitations
 - `POST /predict`
 - `POST /food-risk`
+- `POST /meal-risk`
 - `POST /combined-risk`
 - `POST /image-food-risk`
 - `POST /barcode-food-risk`
+
+Food search order:
+
+1. Local Indian food dataset for common Indian prepared dishes and aliases.
+2. USDA FoodData Central fallback for general foods.
+3. Open Food Facts for barcode/product lookups.
+
+Combo meals use the same food search order for each item, then add the item calories, macros, portion grams, and oral-risk signals into one meal result. This is useful for plates such as `chana masala + garlic naan` or `chicken tikka masala + rice`.
+
+The Indian dataset is deliberately stored as a small normalized runtime JSON file, while raw third-party spreadsheets are ignored. It includes aliases and default portions for common regional foods, but recipe variation is still large; users should review portions and heavy/light preparation before logging. To expand it, export source rows from INDB/IFCT-compatible nutrition data to CSV and run:
+
+```powershell
+cd C:\Users\yashw\Desktop\NutriDent-AI\Caries
+python tools\import_indian_food_dataset.py data\raw\indian_food_export.csv
+```
+
+Review generated values, aliases, portions, source attribution, and license terms before committing the updated `Caries/data/indian_foods.json`.
 
 ## API Contract Examples
 

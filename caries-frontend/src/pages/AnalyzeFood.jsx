@@ -6,6 +6,7 @@ import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { UploadPanel } from "../components/analyze-food/UploadPanel";
 import { SearchPanel } from "../components/analyze-food/SearchPanel";
 import { BarcodePanel } from "../components/analyze-food/BarcodePanel";
+import { MealPanel } from "../components/analyze-food/MealPanel";
 import { DetectionSummary } from "../components/analyze-food/DetectionSummary";
 import { CorrectionCard } from "../components/analyze-food/CorrectionCard";
 import { GuidedPortionCard } from "../components/analyze-food/GuidedPortionCard";
@@ -26,6 +27,10 @@ export default function AnalyzeFood() {
   const [image, setImage]         = useState(null);
   const [imagePreview, setPreview] = useState(null);
   const [searchText, setSearchText] = useState("");
+  const [mealItems, setMealItems] = useState([
+    { food_name: "", portion_g: "" },
+    { food_name: "", portion_g: "" },
+  ]);
 
   // Raw result from backend (per 100 g values + portion_estimate)
   const [rawResult, setRawResult] = useState(null);
@@ -134,8 +139,26 @@ export default function AnalyzeFood() {
   };
 
   // ── RE-FETCH WITH NEW PORTION ─────────────────────────────────────────────────
+  const updateMealItem = (index, key, value) => {
+    setMealItems(prev => prev.map((item, itemIndex) => (
+      itemIndex === index ? { ...item, [key]: value } : item
+    )));
+  };
+
+  const addMealItem = () => {
+    setMealItems(prev => [...prev, { food_name: "", portion_g: "" }]);
+  };
+
+  const removeMealItem = (index) => {
+    setMealItems(prev => prev.length <= 1 ? prev : prev.filter((_, itemIndex) => itemIndex !== index));
+  };
+
   const recalcWithPortion = async (newG, foodNameOverride) => {
     if (!rawResult) return;
+    if (rawResult.meal_items?.length) {
+      setPortionError("Edit the combo meal rows and analyze again to update a meal portion.");
+      return;
+    }
     const foodName = foodNameOverride || correctedFoodName || rawResult.food_name_entered || searchText || rawResult.detected_food || "";
     try {
       setPortionError(null);
@@ -224,6 +247,34 @@ export default function AnalyzeFood() {
     finally   { setLoading(false); }
   };
 
+  const analyzeMeal = async () => {
+    const items = mealItems
+      .map(item => ({
+        food_name: item.food_name.trim(),
+        portion_g: item.portion_g ? Number(item.portion_g) : undefined,
+      }))
+      .filter(item => item.food_name);
+
+    if (!items.length) {
+      setResult({ error: "Add at least one meal item before analyzing." });
+      return;
+    }
+
+    try {
+      setLoading(true); setRawResult(null); setResult(null); setLogged(false);
+      const data = await apiFetch("/meal-risk", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ items }),
+      });
+      applyResult({ ...data, food_name_entered: data.food_name_entered || "Combo meal" });
+    } catch (error) {
+      setResult({ error: error.message || "Meal analysis failed. Check backend." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ── LOG FOOD ──────────────────────────────────────────────────────────────────
   const logFood = () => {
     if (result?.nutrition) {
@@ -274,6 +325,7 @@ export default function AnalyzeFood() {
         {[
           { key: "upload",  label: "📷 Upload Photo" },
           { key: "search",  label: "🔍 Search Food" },
+          { key: "meal",    label: "🍽️ Combo Meal" },
           { key: "barcode", label: "📦 Barcode / QR" },
         ].map(({ key, label }) => (
           <button
@@ -309,6 +361,17 @@ export default function AnalyzeFood() {
           />
         )}
 
+        {mode === "meal" && (
+          <MealPanel
+            items={mealItems}
+            onItemChange={updateMealItem}
+            onAddItem={addMealItem}
+            onRemoveItem={removeMealItem}
+            onAnalyze={analyzeMeal}
+            loading={loading}
+          />
+        )}
+
         {mode === "barcode" && (
           <BarcodePanel
             cameraError={cameraError}
@@ -333,7 +396,7 @@ export default function AnalyzeFood() {
           </div>
           <div>
             <strong>Analyzing nutrition and dental risk</strong>
-            <p>Detecting food, matching USDA data, estimating portion, and preparing macro details.</p>
+            <p>Detecting food, matching nutrition data, estimating portion, and preparing macro details.</p>
           </div>
         </div>
       )}
@@ -351,28 +414,32 @@ export default function AnalyzeFood() {
             imageInsights={imageInsights}
           />
 
-          <CorrectionCard
-            correctedFoodName={correctedFoodName}
-            setCorrectedFoodName={setCorrectedFoodName}
-            mealCategory={mealCategory}
-            setMealCategory={setMealCategory}
-            portionG={portionG}
-            onPortionChange={handlePortionChange}
-            userIngredients={userIngredients}
-            setUserIngredients={setUserIngredients}
-            onApplyCorrections={applyCorrections}
-          />
+          {!result.meal_items?.length && (
+            <>
+              <CorrectionCard
+                correctedFoodName={correctedFoodName}
+                setCorrectedFoodName={setCorrectedFoodName}
+                mealCategory={mealCategory}
+                setMealCategory={setMealCategory}
+                portionG={portionG}
+                onPortionChange={handlePortionChange}
+                userIngredients={userIngredients}
+                setUserIngredients={setUserIngredients}
+                onApplyCorrections={applyCorrections}
+              />
 
-          <GuidedPortionCard
-            guidedKind={guidedKind}
-            guidedAnswers={guidedAnswers}
-            updateGuidedAnswer={updateGuidedAnswer}
-            toggleGuidedTopping={toggleGuidedTopping}
-            guidedEstimatePreview={guidedEstimatePreview}
-            onApplyGuidedEstimate={applyGuidedEstimate}
-          />
+              <GuidedPortionCard
+                guidedKind={guidedKind}
+                guidedAnswers={guidedAnswers}
+                updateGuidedAnswer={updateGuidedAnswer}
+                toggleGuidedTopping={toggleGuidedTopping}
+                guidedEstimatePreview={guidedEstimatePreview}
+                onApplyGuidedEstimate={applyGuidedEstimate}
+              />
+            </>
+          )}
 
-          {portionInfo && (
+          {portionInfo && !result.meal_items?.length && (
             <PortionEditorCard
               portionInfo={portionInfo}
               portionEdited={portionEdited}
@@ -393,6 +460,8 @@ export default function AnalyzeFood() {
             portionInfo={portionInfo}
             ingredientCalories={ingredientCalories}
             nutritionPer100g={result?.nutrition_per_100g}
+            mealItems={result?.meal_items}
+            sourceDetails={result?.source_details}
           />
 
           {risk?.frequency_risk && <FrequencyRiskCard frequencyRisk={risk.frequency_risk} />}

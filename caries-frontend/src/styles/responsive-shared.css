@@ -26,6 +26,8 @@
   .hero-visual { display: none; }
   .results-top-grid { grid-template-columns: 1fr; }
   .journal-metrics-grid { grid-template-columns: 1fr; }
+  .source-transparency-card, .meal-panel-head, .meal-panel-actions { flex-direction: column; }
+  .source-transparency-meta { justify-content: flex-start; }
 }
 @media (max-width: 480px) {
   .page { padding: 20px 16px 40px; }
@@ -35,6 +37,7 @@
   .result-card, .fr-card { padding: 14px; }
   .btn-primary.large { width: 100%; justify-content: center; }
   .quick-search-row, .search-input-row, .daily-journal-head, .journal-weight-row { flex-direction: column; }
+  .meal-item-row, .meal-breakdown-row { grid-template-columns: 1fr; }
   .journal-date-input, .journal-weight-row .weight-input { max-width: none; width: 100%; }
   .settings-grid { grid-template-columns: 1fr; }
   .fli-top { flex-wrap: wrap; }

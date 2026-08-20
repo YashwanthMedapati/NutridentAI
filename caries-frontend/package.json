@@ -34,8 +34,8 @@
     "start": "vite --host 0.0.0.0",
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test": "vitest run --environment jsdom",
-    "test:e2e": "playwright test",
+    "test": "node --no-warnings ./scripts/run-vitest.mjs",
+    "test:e2e": "node --no-warnings ./node_modules/@playwright/test/cli.js test",
     "lint": "eslint ."
   },
   "browserslist": {

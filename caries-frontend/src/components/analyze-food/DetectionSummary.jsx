@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 
 export function DetectionSummary({ result, analysisQuality, imageInsights }) {
+  const sourceDetails = result.source_details;
+
   return (
     <>
       {/* Detected / matched banner */}
@@ -10,9 +12,25 @@ export function DetectionSummary({ result, analysisQuality, imageInsights }) {
           <span>🔍 Detected: <strong>{result.detected_food}</strong></span>
         )}
         <span className="detected-match">
-          USDA match: <em>{result.usda_match}</em>
+          Nutrition match: <em>{result.usda_match}</em>
         </span>
       </div>
+
+      {sourceDetails && (
+        <div className="source-transparency-card">
+          <div>
+            <span className="micro-label">Nutrition Source</span>
+            <strong>{sourceDetails.name || result.source || "Nutrition database"}</strong>
+            {sourceDetails.citation && <p>{sourceDetails.citation}</p>}
+          </div>
+          <div className="source-transparency-meta">
+            {sourceDetails.record && <span>Record: {sourceDetails.record}</span>}
+            {sourceDetails.matched_alias && <span>Matched: {sourceDetails.matched_alias}</span>}
+            {sourceDetails.match_score && <span>{Math.round(sourceDetails.match_score * 100)}% match</span>}
+            {sourceDetails.item_count && <span>{sourceDetails.item_count} items</span>}
+          </div>
+        </div>
+      )}
 
       {analysisQuality && (
         <div className={`analysis-quality-card quality-${(analysisQuality.confidence || "low").toLowerCase()}`}>

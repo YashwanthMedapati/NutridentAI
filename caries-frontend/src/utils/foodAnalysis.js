@@ -67,11 +67,16 @@ export const GUIDED_DEFAULTS = {
     pizzaSize: "medium",
     crust: "regular",
     cheese: "regular cheese",
+    plateSize: "medium plate",
+    visibleAmount: "most",
+    density: "standard",
     toppings: ["cheese", "tomato sauce"],
   },
   bowl: {
     bowlSize: "medium bowl",
     density: "standard",
+    plateSize: "medium plate",
+    visibleAmount: "most",
     toppings: [],
   },
   drink: {
@@ -82,11 +87,16 @@ export const GUIDED_DEFAULTS = {
   handheld: {
     count: "1",
     size: "standard",
+    visibleAmount: "all",
+    density: "standard",
     toppings: [],
   },
   generic: {
     serving: "1",
     size: "medium",
+    plateSize: "medium plate",
+    visibleAmount: "most",
+    density: "standard",
     toppings: [],
   },
 };
@@ -99,6 +109,31 @@ export const TOPPING_OPTIONS = {
   generic: ["sauce", "cheese", "meat", "vegetables", "oil", "sugar"],
 };
 
+function portionConfidenceMultiplier(answers = {}) {
+  const visible = {
+    quarter: 0.25,
+    half: 0.5,
+    most: 0.85,
+    all: 1,
+    more: 1.25,
+  };
+  const plate = {
+    "small plate": 0.86,
+    "medium plate": 1,
+    "large plate": 1.16,
+  };
+  const density = {
+    light: 0.88,
+    standard: 1,
+    dense: 1.16,
+  };
+  return (
+    (visible[answers.visibleAmount] || 1) *
+    (plate[answers.plateSize] || 1) *
+    (density[answers.density] || 1)
+  );
+}
+
 export function guidedEstimate(kind, answers) {
   if (kind === "pizza") {
     const baseBySize = { small: 95, medium: 125, large: 155 };
@@ -109,14 +144,15 @@ export function guidedEstimate(kind, answers) {
       slices *
       (baseBySize[answers.pizzaSize] || baseBySize.medium) *
       (crustMultiplier[answers.crust] || 1) *
-      (cheeseMultiplier[answers.cheese] || 1)
+      (cheeseMultiplier[answers.cheese] || 1) *
+      portionConfidenceMultiplier(answers)
     );
     return { grams, label: `${slices} ${answers.pizzaSize || "medium"} ${answers.crust || "regular"} pizza slice${slices === 1 ? "" : "s"}` };
   }
   if (kind === "bowl") {
     const base = { "small bowl": 180, "medium bowl": 280, "large bowl": 420 };
     const density = { light: 0.85, standard: 1, dense: 1.18 };
-    const grams = Math.round((base[answers.bowlSize] || 280) * (density[answers.density] || 1));
+    const grams = Math.round((base[answers.bowlSize] || 280) * (density[answers.density] || 1) * portionConfidenceMultiplier(answers));
     return { grams, label: answers.bowlSize || "medium bowl" };
   }
   if (kind === "drink") {
@@ -126,11 +162,11 @@ export function guidedEstimate(kind, answers) {
   if (kind === "handheld") {
     const base = { small: 150, standard: 220, large: 320 };
     const count = Math.max(1, Number(answers.count || 1));
-    const grams = Math.round(count * (base[answers.size] || 220));
+    const grams = Math.round(count * (base[answers.size] || 220) * portionConfidenceMultiplier(answers));
     return { grams, label: `${count} ${answers.size || "standard"} item${count === 1 ? "" : "s"}` };
   }
   const base = { small: 100, medium: 150, large: 250 };
   const serving = Math.max(0.25, Number(answers.serving || 1));
-  const grams = Math.round(serving * (base[answers.size] || 150));
+  const grams = Math.round(serving * (base[answers.size] || 150) * portionConfidenceMultiplier(answers));
   return { grams, label: `${serving} ${answers.size || "medium"} serving${serving === 1 ? "" : "s"}` };
 }

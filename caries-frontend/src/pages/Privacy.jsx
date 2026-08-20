@@ -17,7 +17,7 @@ export default function Privacy() {
 
         <div className="about-section">
           <h2 className="about-heading">External APIs</h2>
-          <p>Food search uses USDA FoodData Central. Photo analysis uses Google Vision API through the backend. Uploaded food images are sent to the backend for analysis and then to the configured Vision API provider.</p>
+          <p>Food search first checks NutriDent's local Indian dish dataset, then uses USDA FoodData Central when needed. Barcode scans use Open Food Facts. Photo analysis uses Google Vision API through the backend. Uploaded food images are sent to the backend for analysis and then to the configured Vision API provider.</p>
           <p>Do not upload images that contain faces, documents, or sensitive personal information.</p>
         </div>
 

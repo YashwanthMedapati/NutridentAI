@@ -143,7 +143,7 @@ export default function Home() {
         <div className="steps-row">
           {[
             { n: "01", icon: "📷", title: "Capture or Search Food", desc: "Upload a photo, search by name, or scan a barcode." },
-            { n: "02", icon: "🧠", title: "AI Analyses Nutrition", desc: "Vision and USDA data estimate nutrition, ingredients, and portion size." },
+            { n: "02", icon: "🧠", title: "AI Analyses Nutrition", desc: "Vision plus Indian, USDA, and barcode data estimate nutrition, ingredients, and portion size." },
             { n: "03", icon: "🦷", title: "Caries Risk Scored", desc: "The risk engine weighs sugar, carbs, minerals, texture, and frequency." },
             { n: "04", icon: "💡", title: "Get Actionable Advice", desc: "Receive specific steps to protect your teeth and improve your diet." },
           ].map(({ n, icon, title, desc }) => (

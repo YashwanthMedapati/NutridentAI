@@ -57,7 +57,7 @@ export default function About() {
         <div className="about-section">
           <h2 className="about-heading">How NutriDent AI Helps</h2>
           <p>NutriDent AI uses a <strong>Random Forest machine learning model</strong> trained on the NHANES 2017–2018 clinical dataset (8,000+ participants with full dental examination records, dietary recall, and lifestyle questionnaires).</p>
-          <p>It combines your patient profile with real-time food nutrition data from the <strong>USDA FoodData Central API</strong> (600,000+ foods) and <strong>Google Vision AI</strong> for photo-based food detection to generate a personalised caries risk estimate.</p>
+          <p>It combines your patient profile with food nutrition data from a local <strong>Indian dish dataset</strong>, the <strong>USDA FoodData Central API</strong> (600,000+ foods), Open Food Facts barcode data, and <strong>Google Vision AI</strong> for photo-based food detection to generate a personalised caries risk estimate.</p>
           <p>The model outputs a probability score and highlights which specific factors in your lifestyle are contributing most to your risk.</p>
         </div>
 

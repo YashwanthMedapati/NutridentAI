@@ -13,6 +13,10 @@ node_modules/
 
 # Large local training data
 Caries/*.xpt
+Caries/data/raw/
+Caries/data/*.xlsx
+caries-frontend/.vitest-localstorage
+caries-frontend/.vitest-localstorage-*
 
 # OS
 .DS_Store

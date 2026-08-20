@@ -11,6 +11,8 @@ export function ResultCards({
   portionInfo,
   ingredientCalories,
   nutritionPer100g,
+  mealItems,
+  sourceDetails,
 }) {
   return (
     <div className="food-results-grid">
@@ -115,7 +117,7 @@ export function ResultCards({
               <strong>{nutrition?.energy_kcal ?? "-"} kcal total</strong>
             </div>
             <p>
-              Total calories are calculated from the matched USDA food and your portion size.
+              Total calories are calculated from the matched nutrition record and your portion size.
               This table estimates how visible ingredients contribute to that total; it is not a direct ingredient-by-ingredient measurement.
             </p>
             <div className="ingredient-calorie-list">
@@ -129,6 +131,40 @@ export function ResultCards({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {mealItems?.length > 0 && (
+          <div className="meal-breakdown-card">
+            <div className="macro-detail-head">
+              <span className="micro-label">Meal Item Breakdown</span>
+              <strong>{mealItems.length} items</strong>
+            </div>
+            <div className="meal-breakdown-list">
+              {mealItems.map((item, index) => (
+                <div className="meal-breakdown-row" key={`${item.matched_food}-${index}`}>
+                  <div>
+                    <strong>{item.matched_food}</strong>
+                    <span>{item.portion_g} g • {item.source}</span>
+                  </div>
+                  <div>
+                    <strong>{item.nutrition.energy_kcal} kcal</strong>
+                    <span>{item.nutrition.carbs_g}g carbs • {item.nutrition.protein_g}g protein</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {sourceDetails && (
+          <div className="nutrition-source-note">
+            <span className="micro-label">Data Source</span>
+            <p>
+              Calories and macros use {sourceDetails.name || "the matched nutrition record"}
+              {sourceDetails.record ? `, record: ${sourceDetails.record}` : ""}.
+              Review portions before logging.
+            </p>
           </div>
         )}
 

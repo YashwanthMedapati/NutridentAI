@@ -1,0 +1,682 @@
+{
+  "metadata": {
+    "name": "NutriDent Indian food nutrition seed",
+    "version": "2026-08-19",
+    "basis": [
+      "Structured for INDB/IFCT-style per-100g recipe and ingredient nutrition",
+      "Used as a local fallback before USDA for common Indian dishes"
+    ],
+    "notes": [
+      "Values are per 100g edible prepared food unless otherwise noted.",
+      "Indian recipes vary widely by oil, ghee, cream, sugar, and serving size; users should review portions before logging.",
+      "Large/raw third-party spreadsheets are intentionally not committed. Expand this file with the import script and cite source rows."
+    ]
+  },
+  "foods": [
+    {
+      "name": "Chicken tikka masala",
+      "aliases": ["chicken tikka", "tikka masala", "chicken masala curry", "chicken curry"],
+      "category": "curry",
+      "portion_g": 350,
+      "portion_label": "1 bowl chicken tikka masala (~350g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 150,
+        "sugar_g": 3.2,
+        "carbs_g": 6.8,
+        "fat_g": 9.8,
+        "protein_g": 10.5,
+        "calcium_mg": 55,
+        "phosphorus_mg": 120,
+        "fiber_g": 1.4,
+        "sodium_mg": 420
+      },
+      "dental_tags": ["savory", "sauce", "moderate refined carbs if eaten with naan/rice"]
+    },
+    {
+      "name": "Chana masala",
+      "aliases": ["channa masala", "chole", "chole masala", "chickpea curry"],
+      "category": "curry",
+      "portion_g": 300,
+      "portion_label": "1 bowl chana masala (~300g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 135,
+        "sugar_g": 3.5,
+        "carbs_g": 18.2,
+        "fat_g": 4.8,
+        "protein_g": 6.2,
+        "calcium_mg": 45,
+        "phosphorus_mg": 105,
+        "fiber_g": 5.2,
+        "sodium_mg": 360
+      },
+      "dental_tags": ["legume", "fiber", "moderate carbs"]
+    },
+    {
+      "name": "Garlic naan",
+      "aliases": ["naan garlic", "butter garlic naan", "garlic flatbread"],
+      "category": "flatbread",
+      "portion_g": 110,
+      "portion_label": "1 garlic naan (~110g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 310,
+        "sugar_g": 3.5,
+        "carbs_g": 52,
+        "fat_g": 8.5,
+        "protein_g": 8.8,
+        "calcium_mg": 90,
+        "phosphorus_mg": 125,
+        "fiber_g": 2.1,
+        "sodium_mg": 520
+      },
+      "dental_tags": ["refined flour", "sticky starch", "high fermentable carbs"]
+    },
+    {
+      "name": "Plain naan",
+      "aliases": ["naan", "tandoori naan", "indian flatbread"],
+      "category": "flatbread",
+      "portion_g": 95,
+      "portion_label": "1 plain naan (~95g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 290,
+        "sugar_g": 3.2,
+        "carbs_g": 51,
+        "fat_g": 6.8,
+        "protein_g": 8.5,
+        "calcium_mg": 85,
+        "phosphorus_mg": 120,
+        "fiber_g": 2,
+        "sodium_mg": 480
+      },
+      "dental_tags": ["refined flour", "sticky starch"]
+    },
+    {
+      "name": "Roti",
+      "aliases": ["chapati", "phulka", "whole wheat roti"],
+      "category": "flatbread",
+      "portion_g": 45,
+      "portion_label": "1 roti (~45g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 260,
+        "sugar_g": 1.8,
+        "carbs_g": 52,
+        "fat_g": 3.2,
+        "protein_g": 8.5,
+        "calcium_mg": 28,
+        "phosphorus_mg": 210,
+        "fiber_g": 7,
+        "sodium_mg": 150
+      },
+      "dental_tags": ["whole wheat", "carbs"]
+    },
+    {
+      "name": "Paratha",
+      "aliases": ["plain paratha", "lachha paratha", "layered paratha"],
+      "category": "flatbread",
+      "portion_g": 90,
+      "portion_label": "1 paratha (~90g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 330,
+        "sugar_g": 2.1,
+        "carbs_g": 45,
+        "fat_g": 13.5,
+        "protein_g": 7.5,
+        "calcium_mg": 35,
+        "phosphorus_mg": 155,
+        "fiber_g": 4.2,
+        "sodium_mg": 310
+      },
+      "dental_tags": ["starch", "higher fat"]
+    },
+    {
+      "name": "Butter chicken",
+      "aliases": ["murgh makhani", "butter chicken curry", "chicken makhani"],
+      "category": "curry",
+      "portion_g": 350,
+      "portion_label": "1 bowl butter chicken (~350g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 170,
+        "sugar_g": 3.8,
+        "carbs_g": 6,
+        "fat_g": 12,
+        "protein_g": 10.8,
+        "calcium_mg": 65,
+        "phosphorus_mg": 125,
+        "fiber_g": 1.2,
+        "sodium_mg": 430
+      },
+      "dental_tags": ["cream sauce", "savory"]
+    },
+    {
+      "name": "Paneer butter masala",
+      "aliases": ["paneer makhani", "paneer masala", "butter paneer", "paneer curry"],
+      "category": "curry",
+      "portion_g": 300,
+      "portion_label": "1 bowl paneer butter masala (~300g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 210,
+        "sugar_g": 4,
+        "carbs_g": 8.5,
+        "fat_g": 16,
+        "protein_g": 8.5,
+        "calcium_mg": 170,
+        "phosphorus_mg": 150,
+        "fiber_g": 1.5,
+        "sodium_mg": 400
+      },
+      "dental_tags": ["dairy calcium", "cream sauce"]
+    },
+    {
+      "name": "Dal tadka",
+      "aliases": ["dal", "daal", "yellow dal", "lentil curry", "tadka dal"],
+      "category": "dal",
+      "portion_g": 250,
+      "portion_label": "1 bowl dal (~250g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 105,
+        "sugar_g": 1.6,
+        "carbs_g": 15.5,
+        "fat_g": 3.2,
+        "protein_g": 5.8,
+        "calcium_mg": 32,
+        "phosphorus_mg": 90,
+        "fiber_g": 4.2,
+        "sodium_mg": 300
+      },
+      "dental_tags": ["lentil", "fiber"]
+    },
+    {
+      "name": "Rajma",
+      "aliases": ["rajma masala", "kidney bean curry"],
+      "category": "curry",
+      "portion_g": 300,
+      "portion_label": "1 bowl rajma (~300g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 125,
+        "sugar_g": 2.2,
+        "carbs_g": 19,
+        "fat_g": 3.8,
+        "protein_g": 6.5,
+        "calcium_mg": 42,
+        "phosphorus_mg": 110,
+        "fiber_g": 5.5,
+        "sodium_mg": 340
+      },
+      "dental_tags": ["legume", "fiber", "carbs"]
+    },
+    {
+      "name": "Vegetable biryani",
+      "aliases": ["veg biryani", "vegetable pulao", "veg pulao"],
+      "category": "rice dish",
+      "portion_g": 400,
+      "portion_label": "1 plate vegetable biryani (~400g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 165,
+        "sugar_g": 2.1,
+        "carbs_g": 27,
+        "fat_g": 5.2,
+        "protein_g": 3.8,
+        "calcium_mg": 25,
+        "phosphorus_mg": 75,
+        "fiber_g": 2.2,
+        "sodium_mg": 360
+      },
+      "dental_tags": ["rice", "starch"]
+    },
+    {
+      "name": "Chicken biryani",
+      "aliases": ["biryani chicken", "hyderabadi chicken biryani", "dum chicken biryani"],
+      "category": "rice dish",
+      "portion_g": 450,
+      "portion_label": "1 plate chicken biryani (~450g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 190,
+        "sugar_g": 1.8,
+        "carbs_g": 24,
+        "fat_g": 7.5,
+        "protein_g": 7.5,
+        "calcium_mg": 28,
+        "phosphorus_mg": 105,
+        "fiber_g": 1.7,
+        "sodium_mg": 420
+      },
+      "dental_tags": ["rice", "starch", "protein"]
+    },
+    {
+      "name": "Dosa",
+      "aliases": ["plain dosa", "crispy dosa"],
+      "category": "breakfast",
+      "portion_g": 120,
+      "portion_label": "1 dosa (~120g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 170,
+        "sugar_g": 1.2,
+        "carbs_g": 27,
+        "fat_g": 5,
+        "protein_g": 4,
+        "calcium_mg": 18,
+        "phosphorus_mg": 70,
+        "fiber_g": 1.8,
+        "sodium_mg": 260
+      },
+      "dental_tags": ["fermented batter", "rice", "starch"]
+    },
+    {
+      "name": "Masala dosa",
+      "aliases": ["mysore masala dosa", "potato dosa"],
+      "category": "breakfast",
+      "portion_g": 250,
+      "portion_label": "1 masala dosa (~250g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 185,
+        "sugar_g": 1.5,
+        "carbs_g": 29,
+        "fat_g": 6,
+        "protein_g": 4.2,
+        "calcium_mg": 20,
+        "phosphorus_mg": 78,
+        "fiber_g": 2.4,
+        "sodium_mg": 300
+      },
+      "dental_tags": ["rice batter", "potato starch"]
+    },
+    {
+      "name": "Idli",
+      "aliases": ["idly", "steamed idli", "rice idli"],
+      "category": "breakfast",
+      "portion_g": 120,
+      "portion_label": "2 idli (~120g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 125,
+        "sugar_g": 0.8,
+        "carbs_g": 25,
+        "fat_g": 0.8,
+        "protein_g": 4,
+        "calcium_mg": 20,
+        "phosphorus_mg": 65,
+        "fiber_g": 1.6,
+        "sodium_mg": 210
+      },
+      "dental_tags": ["rice batter", "soft starch"]
+    },
+    {
+      "name": "Samosa",
+      "aliases": ["vegetable samosa", "aloo samosa", "punjabi samosa"],
+      "category": "snack",
+      "portion_g": 80,
+      "portion_label": "1 samosa (~80g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 300,
+        "sugar_g": 2.2,
+        "carbs_g": 33,
+        "fat_g": 17,
+        "protein_g": 5,
+        "calcium_mg": 25,
+        "phosphorus_mg": 80,
+        "fiber_g": 3.2,
+        "sodium_mg": 420
+      },
+      "dental_tags": ["refined flour", "potato starch", "fried"]
+    },
+    {
+      "name": "Pav bhaji",
+      "aliases": ["paav bhaji", "bhaji pav"],
+      "category": "street food",
+      "portion_g": 350,
+      "portion_label": "1 plate pav bhaji (~350g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 155,
+        "sugar_g": 3.8,
+        "carbs_g": 22,
+        "fat_g": 5.8,
+        "protein_g": 4,
+        "calcium_mg": 35,
+        "phosphorus_mg": 80,
+        "fiber_g": 3.5,
+        "sodium_mg": 410
+      },
+      "dental_tags": ["bread", "potato starch", "butter"]
+    },
+    {
+      "name": "Poha",
+      "aliases": ["kanda poha", "flattened rice poha"],
+      "category": "breakfast",
+      "portion_g": 250,
+      "portion_label": "1 bowl poha (~250g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 145,
+        "sugar_g": 2,
+        "carbs_g": 24,
+        "fat_g": 4.2,
+        "protein_g": 3.2,
+        "calcium_mg": 22,
+        "phosphorus_mg": 65,
+        "fiber_g": 2.3,
+        "sodium_mg": 250
+      },
+      "dental_tags": ["flattened rice", "starch"]
+    },
+    {
+      "name": "Upma",
+      "aliases": ["rava upma", "sooji upma", "semolina upma"],
+      "category": "breakfast",
+      "portion_g": 250,
+      "portion_label": "1 bowl upma (~250g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 150,
+        "sugar_g": 1.8,
+        "carbs_g": 25,
+        "fat_g": 4.5,
+        "protein_g": 4.2,
+        "calcium_mg": 20,
+        "phosphorus_mg": 70,
+        "fiber_g": 2,
+        "sodium_mg": 300
+      },
+      "dental_tags": ["semolina", "starch"]
+    },
+    {
+      "name": "Gulab jamun",
+      "aliases": ["gulab jamun dessert", "jamun sweet"],
+      "category": "dessert",
+      "portion_g": 100,
+      "portion_label": "2 gulab jamun (~100g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 320,
+        "sugar_g": 38,
+        "carbs_g": 52,
+        "fat_g": 11,
+        "protein_g": 5,
+        "calcium_mg": 95,
+        "phosphorus_mg": 80,
+        "fiber_g": 0.5,
+        "sodium_mg": 120
+      },
+      "dental_tags": ["syrup", "sticky sugar", "high sugar"]
+    },
+    {
+      "name": "Masala chai",
+      "aliases": ["chai", "tea with milk", "indian tea", "milk tea"],
+      "category": "drink",
+      "portion_g": 240,
+      "portion_label": "1 cup masala chai (~240ml)",
+      "nutrition_per_100g": {
+        "energy_kcal": 55,
+        "sugar_g": 7,
+        "carbs_g": 8,
+        "fat_g": 1.7,
+        "protein_g": 2,
+        "calcium_mg": 70,
+        "phosphorus_mg": 55,
+        "fiber_g": 0,
+        "sodium_mg": 35
+      },
+      "dental_tags": ["sweetened drink", "frequent sipping risk"]
+    },
+    {
+      "name": "Mango lassi",
+      "aliases": ["lassi mango", "sweet mango lassi"],
+      "category": "drink",
+      "portion_g": 300,
+      "portion_label": "1 glass mango lassi (~300ml)",
+      "nutrition_per_100g": {
+        "energy_kcal": 95,
+        "sugar_g": 14,
+        "carbs_g": 17,
+        "fat_g": 2,
+        "protein_g": 3,
+        "calcium_mg": 95,
+        "phosphorus_mg": 75,
+        "fiber_g": 0.5,
+        "sodium_mg": 45
+      },
+      "dental_tags": ["sweetened drink", "sugar", "acidic fruit"]
+    },
+    {
+      "name": "Palak paneer",
+      "aliases": ["saag paneer", "spinach paneer", "paneer spinach curry"],
+      "category": "curry",
+      "portion_g": 300,
+      "portion_label": "1 bowl palak paneer (~300g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 165,
+        "sugar_g": 2.4,
+        "carbs_g": 6.5,
+        "fat_g": 12,
+        "protein_g": 8.2,
+        "calcium_mg": 190,
+        "phosphorus_mg": 145,
+        "fiber_g": 2.3,
+        "sodium_mg": 390
+      },
+      "dental_tags": ["dairy calcium", "leafy greens", "cream/oil varies"]
+    },
+    {
+      "name": "Aloo gobi",
+      "aliases": ["aloo gobhi", "potato cauliflower curry", "aloo cauliflower"],
+      "category": "curry",
+      "portion_g": 250,
+      "portion_label": "1 bowl aloo gobi (~250g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 120,
+        "sugar_g": 2.5,
+        "carbs_g": 17.5,
+        "fat_g": 4.8,
+        "protein_g": 3.2,
+        "calcium_mg": 35,
+        "phosphorus_mg": 75,
+        "fiber_g": 3.8,
+        "sodium_mg": 310
+      },
+      "dental_tags": ["potato starch", "vegetable fiber"]
+    },
+    {
+      "name": "Egg curry",
+      "aliases": ["anda curry", "egg masala", "boiled egg curry"],
+      "category": "curry",
+      "portion_g": 300,
+      "portion_label": "1 bowl egg curry (~300g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 145,
+        "sugar_g": 2.2,
+        "carbs_g": 5.8,
+        "fat_g": 10,
+        "protein_g": 8.8,
+        "calcium_mg": 55,
+        "phosphorus_mg": 130,
+        "fiber_g": 1.2,
+        "sodium_mg": 390
+      },
+      "dental_tags": ["protein", "savory sauce"]
+    },
+    {
+      "name": "Fish curry",
+      "aliases": ["fish masala", "meen curry", "indian fish curry"],
+      "category": "curry",
+      "portion_g": 320,
+      "portion_label": "1 bowl fish curry (~320g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 135,
+        "sugar_g": 2,
+        "carbs_g": 5.2,
+        "fat_g": 7.8,
+        "protein_g": 11,
+        "calcium_mg": 45,
+        "phosphorus_mg": 150,
+        "fiber_g": 1.1,
+        "sodium_mg": 410
+      },
+      "dental_tags": ["protein", "savory sauce", "acidic/tamarind varies"]
+    },
+    {
+      "name": "Sambar",
+      "aliases": ["sambhar", "lentil vegetable stew", "south indian sambar"],
+      "category": "dal",
+      "portion_g": 250,
+      "portion_label": "1 bowl sambar (~250g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 72,
+        "sugar_g": 2.1,
+        "carbs_g": 11.8,
+        "fat_g": 1.8,
+        "protein_g": 3.7,
+        "calcium_mg": 32,
+        "phosphorus_mg": 72,
+        "fiber_g": 3.1,
+        "sodium_mg": 300
+      },
+      "dental_tags": ["lentil", "fiber", "tamarind acidity varies"]
+    },
+    {
+      "name": "Curd rice",
+      "aliases": ["yogurt rice", "thayir sadam", "dahi rice"],
+      "category": "rice dish",
+      "portion_g": 300,
+      "portion_label": "1 bowl curd rice (~300g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 118,
+        "sugar_g": 3.1,
+        "carbs_g": 19.5,
+        "fat_g": 2.7,
+        "protein_g": 4,
+        "calcium_mg": 75,
+        "phosphorus_mg": 82,
+        "fiber_g": 0.8,
+        "sodium_mg": 210
+      },
+      "dental_tags": ["rice starch", "dairy calcium"]
+    },
+    {
+      "name": "Lemon rice",
+      "aliases": ["chitranna", "nimmakaya pulihora", "south indian lemon rice"],
+      "category": "rice dish",
+      "portion_g": 300,
+      "portion_label": "1 plate lemon rice (~300g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 170,
+        "sugar_g": 1.4,
+        "carbs_g": 28,
+        "fat_g": 5.5,
+        "protein_g": 3.2,
+        "calcium_mg": 20,
+        "phosphorus_mg": 70,
+        "fiber_g": 1.6,
+        "sodium_mg": 330
+      },
+      "dental_tags": ["rice starch", "acidic lemon"]
+    },
+    {
+      "name": "Uttapam",
+      "aliases": ["uthappam", "onion uttapam", "vegetable uttapam"],
+      "category": "breakfast",
+      "portion_g": 180,
+      "portion_label": "1 uttapam (~180g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 160,
+        "sugar_g": 1.6,
+        "carbs_g": 26,
+        "fat_g": 4.7,
+        "protein_g": 4.3,
+        "calcium_mg": 22,
+        "phosphorus_mg": 78,
+        "fiber_g": 2.1,
+        "sodium_mg": 280
+      },
+      "dental_tags": ["fermented batter", "rice starch"]
+    },
+    {
+      "name": "Medu vada",
+      "aliases": ["vada", "ulundu vadai", "lentil doughnut"],
+      "category": "snack",
+      "portion_g": 90,
+      "portion_label": "2 medu vada (~90g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 275,
+        "sugar_g": 1.2,
+        "carbs_g": 28,
+        "fat_g": 15,
+        "protein_g": 8,
+        "calcium_mg": 35,
+        "phosphorus_mg": 130,
+        "fiber_g": 4,
+        "sodium_mg": 350
+      },
+      "dental_tags": ["fried", "legume", "starch"]
+    },
+    {
+      "name": "Pani puri",
+      "aliases": ["golgappa", "puchka", "gupchup", "panipuri"],
+      "category": "street food",
+      "portion_g": 120,
+      "portion_label": "6 pani puri (~120g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 210,
+        "sugar_g": 4,
+        "carbs_g": 32,
+        "fat_g": 7,
+        "protein_g": 5,
+        "calcium_mg": 28,
+        "phosphorus_mg": 80,
+        "fiber_g": 3.2,
+        "sodium_mg": 450
+      },
+      "dental_tags": ["refined flour", "potato/chickpea starch", "acidic water"]
+    },
+    {
+      "name": "Bhel puri",
+      "aliases": ["bhelpuri", "bhel", "puffed rice chaat"],
+      "category": "street food",
+      "portion_g": 200,
+      "portion_label": "1 bowl bhel puri (~200g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 190,
+        "sugar_g": 7,
+        "carbs_g": 34,
+        "fat_g": 4.5,
+        "protein_g": 5,
+        "calcium_mg": 32,
+        "phosphorus_mg": 95,
+        "fiber_g": 3.5,
+        "sodium_mg": 420
+      },
+      "dental_tags": ["puffed rice", "sweet chutney", "sticky starch"]
+    },
+    {
+      "name": "Jalebi",
+      "aliases": ["jilebi", "imarti style sweet", "jalebi sweet"],
+      "category": "dessert",
+      "portion_g": 80,
+      "portion_label": "2 medium jalebi (~80g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 390,
+        "sugar_g": 48,
+        "carbs_g": 72,
+        "fat_g": 10,
+        "protein_g": 4,
+        "calcium_mg": 22,
+        "phosphorus_mg": 55,
+        "fiber_g": 0.6,
+        "sodium_mg": 110
+      },
+      "dental_tags": ["syrup", "sticky sugar", "very high sugar"]
+    },
+    {
+      "name": "Kheer",
+      "aliases": ["payasam", "rice pudding", "indian rice pudding"],
+      "category": "dessert",
+      "portion_g": 180,
+      "portion_label": "1 bowl kheer (~180g)",
+      "nutrition_per_100g": {
+        "energy_kcal": 145,
+        "sugar_g": 18,
+        "carbs_g": 24,
+        "fat_g": 4.2,
+        "protein_g": 4,
+        "calcium_mg": 105,
+        "phosphorus_mg": 85,
+        "fiber_g": 0.4,
+        "sodium_mg": 60
+      },
+      "dental_tags": ["sweetened dairy", "rice starch", "sugar"]
+    }
+  ]
+}

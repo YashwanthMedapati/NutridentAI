@@ -73,6 +73,12 @@ INGREDIENT_CALORIE_WEIGHTS = {
     "peppers": 0.05,
     "mushroom": 0.04,
     "basil/herbs": 0.01,
+    "chickpeas": 0.22,
+    "paneer": 0.24,
+    "lentils": 0.22,
+    "rice": 0.32,
+    "naan/flatbread": 0.38,
+    "cream/butter sauce": 0.22,
 }
 
 

@@ -57,6 +57,31 @@ class CoreBehaviorTests(unittest.TestCase):
         self.assertEqual(main.get_off_serving_g({"serving_size": "250 ml"}), 250)
         self.assertEqual(main.get_off_serving_g({"serving_size": ""}), 100)
 
+    def test_indian_food_dataset_matches_common_aliases(self):
+        food = main.search_indian_food("chole")
+        nutrients = main.extract_indian_nutrients(food)
+        portion = main.indian_portion_info(food)
+
+        self.assertEqual(nutrients["food"], "Chana masala")
+        self.assertGreater(nutrients["energy_kcal"], 0)
+        self.assertEqual(portion["g"], 300)
+
+    def test_expanded_indian_food_dataset_matches_regional_foods(self):
+        cases = {
+            "saag paneer": "Palak paneer",
+            "meen curry": "Fish curry",
+            "thayir sadam": "Curd rice",
+            "golgappa": "Pani puri",
+            "jilebi": "Jalebi",
+            "payasam": "Kheer",
+        }
+
+        for query, expected in cases.items():
+            with self.subTest(query=query):
+                food = main.search_indian_food(query)
+                self.assertIsNotNone(food)
+                self.assertEqual(food["name"], expected)
+
     def test_patient_input_rejects_smoking_start_after_age(self):
         with self.assertRaises(ValidationError):
             main.PatientInput(

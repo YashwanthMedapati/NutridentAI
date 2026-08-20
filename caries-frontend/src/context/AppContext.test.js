@@ -62,12 +62,8 @@ describe("AppProvider cloud sync on sign-in", () => {
     vi.clearAllMocks();
   });
 
-  // Note: this test file's jsdom localStorage is non-functional in this Node
-  // version (setItem/clear throw), which the app already tolerates via
-  // try/catch fallback to defaults in useLocalStorageState. Rather than fight
-  // that, "local" state below is seeded through the provider's own public
-  // addToFoodLog API instead of pre-populating localStorage directly — this
-  // is also a more faithful test of the real contract either way.
+  // Seed "local" state through the provider's public API rather than writing
+  // localStorage directly, which keeps this test focused on the app contract.
   function Harness({ seedLocal }) {
     const { foodLog, weightLog, cloudSyncStatus, cloudSyncError, addToFoodLog } = useApp();
     React.useEffect(() => {

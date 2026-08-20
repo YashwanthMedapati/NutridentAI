@@ -115,6 +115,38 @@ class EndpointTests(unittest.TestCase):
         self.assertIn("analysis_quality", body)
         self.assertIn("calorie_breakdown", body)
 
+    def test_food_risk_matches_indian_dataset_without_usda_key(self):
+        with patch.dict(main.os.environ, {}, clear=False):
+            main.os.environ.pop("USDA_API_KEY", None)
+            response = self.client.post("/food-risk", json={"food_name": "chole"})
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["usda_match"], "Chana masala")
+        self.assertEqual(body["source"], "Indian nutrition dataset")
+        self.assertEqual(body["portion_estimate"]["g"], 300)
+        self.assertGreater(body["nutrition"]["energy_kcal"], 0)
+
+    def test_meal_risk_scores_indian_combo_meal_without_usda_key(self):
+        payload = {
+            "items": [
+                {"food_name": "chana masala"},
+                {"food_name": "garlic naan", "portion_g": 110},
+            ]
+        }
+        with patch.dict(main.os.environ, {}, clear=False):
+            main.os.environ.pop("USDA_API_KEY", None)
+            response = self.client.post("/meal-risk", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["detected_food"], "Combo meal")
+        self.assertEqual(len(body["meal_items"]), 2)
+        self.assertEqual(body["source"], "Indian nutrition dataset")
+        self.assertGreater(body["nutrition"]["energy_kcal"], 600)
+        self.assertEqual(body["portion_estimate"]["g"], 410)
+        self.assertIn("source_details", body)
+
     def test_food_risk_without_usda_key_returns_503(self):
         with patch.dict(main.os.environ, {}, clear=False):
             main.os.environ.pop("USDA_API_KEY", None)
